@@ -1,13 +1,15 @@
 # Torch-CUDA-Compatibility-Checker (last updated 1/30/2026)
 > Check compatibility between torch, cuda, flash attention 2, and similar libraries.
+> You can either run this program to determine compatibility automatically or read further below to figure things out manually.
 
-### To determine compatibilty run/install the program.  For further explanation/understand read my explanations below.
+## Option 1 - Running this program.
+1) Download the script
+2) Create a virtual environment and activate it.
+3) pip install ```pyside6```
+4) Then run the script.
+   > Or use the .exe installer, which only works on Windows.
 
-## Detailed Explanation
-
-Got it! Here's your revised and updated guide:
-
----
+## Option 2 - Read my explanation and determing compatibility using your brain power.
 
 ### `torch` & CUDA Compatibility
 
