@@ -11,47 +11,46 @@ class CompatibilityData:
     def __init__(self):
         self.windows_notes = """
 WINDOWS COMPATIBILITY NOTES:
-- CUDA 12.9 (cu129): Not built for Windows (torch 2.9.1, 2.10.0)
-- CUDA 13.0 (cu130): No cuDNN support on Windows - cuDNN for CUDA 13.x is Linux-only
-- For Windows users, stick with cu126 or cu128 builds for full cuDNN functionality
+- cu126, cu128, and cu129 all have full cuDNN functionality on Windows
+- cu130 wheels exist for Windows but lack cuDNN support (cuDNN 9.x for CUDA 13.x is Linux-only)
+
+STABILITY STATUS NOTE:
+- cu129 stability status is undocumented in RELEASE.md for Torch 2.10/2.9.1 even though wheels are built (marked with †)
 
 TRITON COMPATIBILITY NOTE:
-- PyTorch hard-pins triton via install_triton_wheel.sh + triton_version.txt
-- However, triton-windows indicates all minor versions (e.g., 3.5.x) are compatible
+- PyTorch hard-pins a specific triton version in install_triton_wheel.sh + triton_version.txt. In contrast, the release notes in the triton-windows repo says all patch versions are compatible.
 
 FLASH ATTENTION NOTE:
-- FA2 wheels are built for specific torch versions (e.g., 2.9.0)
-- Patch versions (e.g., 2.9.1) are assumed compatible but not officially tested (marked with *)
+- FA2 wheels are built for specific torch versions (e.g., 2.9.0).  Patch versions (e.g., 2.9.1) are assumed compatible but not officially tested (marked with *)
 
 BITSANDBYTES NOTE:
-- bitsandbytes is CUDA/Python dependent, not PyTorch version dependent
-- Versions marked with * indicate assumed compatibility (not officially tested)
+- bitsandbytes is primarily CUDA/Python dependent.  Versions marked with * indicate assumed compatibility (not officially tested)
 """
 
         self.torch_cuda = [
-            {"torch": "2.10.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.15.1.9", "windows": False},
-            {"torch": "2.10.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": False},
-            {"torch": "2.10.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.10.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.1", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False},
-            {"torch": "2.9.1", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": False},
-            {"torch": "2.9.1", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False},
-            {"torch": "2.9.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.8.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.8.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.8.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.7.1", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.5.1.17", "windows": True},
-            {"torch": "2.7.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True},
-            {"torch": "2.7.1", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.5.1.17", "windows": True},
-            {"torch": "2.7.0", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.5.1.17", "windows": True},
-            {"torch": "2.7.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True},
-            {"torch": "2.7.0", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.5.1.17", "windows": True},
-            {"torch": "2.6.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.1.0.70", "windows": True},
-            {"torch": "2.6.0", "wheel": "cu124", "cuda": "12.4.1", "cudnn": "9.1.0.70", "windows": True},
-            {"torch": "2.6.0", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.1.0.70", "windows": True},
+            {"torch": "2.10.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.15.1.9", "windows": False, "stability_undocumented": False},
+            {"torch": "2.10.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": True},
+            {"torch": "2.10.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.10.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.9.1", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False, "stability_undocumented": False},
+            {"torch": "2.9.1", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": True},
+            {"torch": "2.9.1", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.9.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False, "stability_undocumented": False},
+            {"torch": "2.9.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.9.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.8.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.8.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.8.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.1", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.1", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.0", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.0", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.6.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.1.0.70", "windows": True, "stability_undocumented": False},
+            {"torch": "2.6.0", "wheel": "cu124", "cuda": "12.4.1", "cudnn": "9.1.0.70", "windows": True, "stability_undocumented": False},
+            {"torch": "2.6.0", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.1.0.70", "windows": True, "stability_undocumented": False},
         ]
 
         self.torch_python_triton = [
@@ -150,19 +149,17 @@ BITSANDBYTES NOTE:
 
         self.bitsandbytes = [
             {"bnb": "0.49.1", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"], 
-             "python": ["3.9", "3.10", "3.11", "3.12"], "assumed_cuda": []},
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
             {"bnb": "0.49.0", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"], 
-             "python": ["3.9", "3.10", "3.11", "3.12"], "assumed_cuda": []},
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
             {"bnb": "0.48.2", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.1"], 
-             "python": ["3.9", "3.10", "3.11", "3.12"], "assumed_cuda": ["13.0.1"]},
+             "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "assumed_cuda": ["13.0.1"]},
             {"bnb": "0.48.1", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.1"], 
-             "python": ["3.9", "3.10", "3.11", "3.12"], "assumed_cuda": ["13.0.1"]},
+             "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "assumed_cuda": ["13.0.1"]},
             {"bnb": "0.48.0", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.1"], 
-             "python": ["3.9", "3.10", "3.11", "3.12"], "assumed_cuda": ["13.0.1"]},
+             "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "assumed_cuda": ["13.0.1"]},
             {"bnb": "0.47.0", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1"], 
-             "python": ["3.9", "3.10", "3.11", "3.12"], "assumed_cuda": ["12.9.1"]},
-            {"bnb": "0.46.1", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1"], 
-             "python": ["3.9", "3.10", "3.11", "3.12"], "assumed_cuda": ["12.9.1"]},
+             "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "assumed_cuda": ["12.9.1"]},
         ]
 
         self.cuda_metapackages = {
@@ -468,7 +465,7 @@ class CompatibilityChecker(QMainWindow):
                     torchvision_ver = ecosystem.get("torchvision", "-")
                     torchaudio_ver = ecosystem.get("torchaudio", "-")
 
-                    windows_support = "Yes" if tc.get("windows", True) else "No"
+                    windows_support = "Yes" if tc.get("windows", True) else "No (cuDNN)"
 
                     triton_pin = pt["triton"]
                     triton_compat_list = pt["triton_compat"]
@@ -477,12 +474,17 @@ class CompatibilityChecker(QMainWindow):
                     else:
                         triton_display = triton_pin
 
+                    stability_undocumented = tc.get("stability_undocumented", False)
+                    cuda_display = tc["cuda"]
+                    if stability_undocumented:
+                        cuda_display += "†"
+
                     compatible.append({
                         "torch": tc["torch"],
                         "torchvision": torchvision_ver,
                         "torchaudio": torchaudio_ver,
                         "python": py_ver,
-                        "cuda": tc["cuda"],
+                        "cuda": cuda_display,
                         "cudnn": tc["cudnn"],
                         "triton": triton_display,
                         "fa2": ", ".join(sorted(fa2_versions, reverse=True)),
@@ -490,7 +492,8 @@ class CompatibilityChecker(QMainWindow):
                         "xformers": ", ".join(xf_versions[:3]) + ("..." if len(xf_versions) > 3 else ""),
                         "bnb": ", ".join(bnb_versions[:3]) + ("..." if len(bnb_versions) > 3 else ""),
                         "bnb_has_assumed": bnb_has_assumed,
-                        "windows": windows_support
+                        "windows": windows_support,
+                        "stability_undocumented": stability_undocumented
                     })
 
         self.compat_table.clear()
@@ -505,7 +508,14 @@ class CompatibilityChecker(QMainWindow):
                 self.compat_table.setItem(i, 1, QTableWidgetItem(combo["torchvision"]))
                 self.compat_table.setItem(i, 2, QTableWidgetItem(combo["torchaudio"]))
                 self.compat_table.setItem(i, 3, QTableWidgetItem(combo["python"]))
-                self.compat_table.setItem(i, 4, QTableWidgetItem(combo["cuda"]))
+                
+                cuda_item = QTableWidgetItem(combo["cuda"])
+                if combo["stability_undocumented"]:
+                    cuda_item.setBackground(QColor(147, 112, 219))
+                    cuda_item.setForeground(QColor(255, 255, 255))
+                    cuda_item.setToolTip("† = Stability status undocumented in RELEASE.md (wheel exists but not listed as stable or experimental)")
+                self.compat_table.setItem(i, 4, cuda_item)
+                
                 self.compat_table.setItem(i, 5, QTableWidgetItem(combo["cudnn"]))
                 self.compat_table.setItem(i, 6, QTableWidgetItem(combo["triton"]))
                 
@@ -526,9 +536,10 @@ class CompatibilityChecker(QMainWindow):
                 self.compat_table.setItem(i, 9, bnb_item)
                 
                 windows_item = QTableWidgetItem(combo["windows"])
-                if combo["windows"] == "No":
-                    windows_item.setBackground(QColor(255, 100, 100))
+                if combo["windows"] == "No (cuDNN)":
+                    windows_item.setBackground(QColor(255, 200, 100))
                     windows_item.setForeground(QColor(0, 0, 0))
+                    windows_item.setToolTip("Wheel exists but cuDNN 9.x for CUDA 13.x is Linux-only")
                 self.compat_table.setItem(i, 10, windows_item)
 
             self.compat_table.resizeColumnsToContents()
