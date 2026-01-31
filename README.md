@@ -1,4 +1,4 @@
-# Torch-CUDA-Compatibility-Checker (last updated 1/30/2026)
+# Torch-CUDA-Compatibility-Checker (last updated 1/31/2026)
 > Check compatibility between torch, cuda, flash attention 2, and similar libraries.
 > You can either run this program to determine compatibility automatically or read further below to figure things out manually.
 
@@ -14,7 +14,6 @@
 ### `torch` & CUDA Compatibility
 
 The most recent `torch` wheels use naming conventions like `cu126`, `cu128`, `cu129`, and `cu130`. These refer to the CUDA "release" that `torch` has been tested with.
-
 ```
 +--------+----------------------------------+
 | Torch  | Specific CUDA Release            |
@@ -33,7 +32,6 @@ The most recent `torch` wheels use naming conventions like `cu126`, `cu128`, `cu
 ```
 
 Unfortunately, monikers like `cu126` or `cu128` don't specify the exact version—is it 12.8.0 or 12.8.1? To answer this, you have to examine PyTorch's [build matrix](https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py), which shows the specific CUDA library versions that `torch` is tested with:
-
 ```
 +--------------+------------+------------+------------+------------+------------+------------+------------+
 |              |   12.4.1   |   12.6.3   |   12.8.0   |   12.8.1   |   12.9.1   |   13.0.0   |   13.0.2   |
@@ -62,19 +60,19 @@ Overall, `torch` only tests with these specific versions of the CUDA libraries. 
 ### Official PyTorch Support Matrix
 
 PyTorch maintains an official [compatibility matrix](https://github.com/pytorch/pytorch/blob/main/RELEASE.md#release-compatibility-matrix) that summarizes supported Python and CUDA versions:
-
 ```
-+-------+-----------------------------+---------------------------------------------------+
-| Torch | Python                      | Stable CUDA                                       |
-+-------+-----------------------------+---------------------------------------------------+
-| 2.10  | >=3.10, <=3.14 (3.14t exp.) | CUDA 12.6 (cuDNN 9.10.2.21), 12.8 (cuDNN 9.10.2.21)|
-| 2.9   | >=3.10, <=3.14              | CUDA 12.6 (cuDNN 9.10.2.21), 12.8 (cuDNN 9.10.2.21)|
-| 2.8   | >=3.9, <=3.13               | CUDA 12.6, 12.8 + cuDNN 9.10.2.21                 |
-| 2.7   | >=3.9, <=3.13               | CUDA 12.6 + cuDNN 9.5.1.17                        |
-| 2.6   | >=3.9, <=3.13               | CUDA 12.4 + cuDNN 9.1.0.70                        |
-| 2.5   | >=3.9, <=3.12 (3.13 exp.)   | CUDA 12.1, 12.4 + cuDNN 9.1.0.70                  |
-+-------+-----------------------------+---------------------------------------------------+
++-------+-----------------------------+----------------------------------------------+----------------------------------+
+| Torch | Python                      | Stable CUDA                                  | Experimental CUDA                |
++-------+-----------------------------+----------------------------------------------+----------------------------------+
+| 2.10  | >=3.10, <=3.14 (3.14t exp.) | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 13.0 + cuDNN 9.15.1.9      |
+| 2.9   | >=3.10, <=3.14              | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 13.0 + cuDNN 9.13.0.50     |
+| 2.8   | >=3.9, <=3.13               | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 12.9 + cuDNN 9.10.2.21     |
+| 2.7   | >=3.9, <=3.13               | CUDA 12.6 + cuDNN 9.5.1.17                  | CUDA 12.8 + cuDNN 9.7.1.26      |
+| 2.6   | >=3.9, <=3.13               | CUDA 12.4 + cuDNN 9.1.0.70                  |                                  |
+| 2.5   | >=3.9, <=3.12 (3.13 exp.)  | CUDA 12.1, 12.4 + cuDNN 9.1.0.70            |                                  |
++-------+-----------------------------+----------------------------------------------+----------------------------------+
 ```
+> cu129 stability status isn't documented in the compatibility matrix for Torch 2.10/2.9.1 even though wheels are built.
 
 However, when pip installing CUDA libraries it's essential to understand that libraries (like `torch`) are only tested with specific CUDA release versions, and you have to pip install the correct individual library versions associated with a particular CUDA release. In other words, "your mileage may vary" if you pip install library versions that haven't been fully tested by `torch` or other libraries. MOST times it will work, but sometimes it will not...
 
@@ -83,7 +81,6 @@ However, when pip installing CUDA libraries it's essential to understand that li
 ### `torch` and `triton` Compatibility
 
 Triton generates custom CUDA kernels that can optionally be used with torch. PyTorch hard-pins triton versions via `install_triton_wheel.sh` and `triton_version.txt` in their repository. By examining all permutations of recent `torch` wheels, you get the following table:
-
 ```
 +-------+----------------------------+-------------+--------+
 | Torch | CUDA                       | Triton Pin  | Sympy  |
@@ -104,7 +101,6 @@ Triton generates custom CUDA kernels that can optionally be used with torch. PyT
 ### Triton for Windows
 
 For Windows users, the [triton-windows](https://github.com/woct0rdho/triton-windows) project provides compatible builds. While PyTorch hard-pins specific triton versions, triton-windows indicates broader compatibility within minor versions:
-
 ```
 +--------------------------+----------------+----------------------------------------+
 | Release                  | Compatible     | Notes                                  |
@@ -124,7 +120,6 @@ For Windows users, the [triton-windows](https://github.com/woct0rdho/triton-wind
 ### cuDNN & CUDA Compatibility
 
 NVIDIA promises that all cuDNN 9+ releases are compatible with all CUDA 12.x releases:
-
 ```
 +-------------------+---------------------+-------------------+
 | cuDNN Package     | CUDA Toolkit        | Windows Support   |
@@ -142,7 +137,6 @@ NVIDIA promises that all cuDNN 9+ releases are compatible with all CUDA 12.x rel
 ### Windows-Specific Limitations
 
 Not all torch wheels are available or fully functional on Windows:
-
 ```
 +--------+--------+--------------------------------------------------+
 | Torch  | Wheel  | Windows Status                                   |
@@ -167,7 +161,6 @@ Consult these three scripts for the most up-to-date compatibility information:
 - [`torch`](https://github.com/facebookresearch/xformers/blob/main/.github/workflows/wheels.yml)
 - [`flash attention 2`](https://github.com/facebookresearch/xformers/blob/main/xformers/ops/fmha/flash.py)
 - [`CUDA`](https://github.com/facebookresearch/xformers/blob/main/.github/actions/setup-build-cuda/action.yml)
-
 ```
 +------------------+--------+---------------+--------------------------------+
 | Xformers Version | Torch  |      FA2      |       CUDA (excl. 11.x)        |
@@ -194,7 +187,6 @@ Consult these three scripts for the most up-to-date compatibility information:
 [This repository](https://github.com/kingbri1/flash-attention) is currently the best place to get Flash Attention 2 wheels for Windows. Please note that a Windows release is NOT made for every release that the parent repository issues (which are only Linux wheels).
 
 Whereas `xformers` is strictly tied to a `torch` release, `flash attention 2` is specifically tied to a CUDA release, although it's fairly flexible regarding `torch` compatibility:
-
 ```
 +--------------+------------------------------------------------------+
 | FA2 Version  | Compatibility (Windows)                              |
@@ -215,7 +207,6 @@ Whereas `xformers` is strictly tied to a `torch` release, `flash attention 2` is
 ### `bitsandbytes` Compatibility
 
 `bitsandbytes` provides excellent CUDA version coverage for Windows:
-
 ```
 +------------------+-----------------------------------------------+----------------------+
 | bitsandbytes     | CUDA versions (Windows wheels)                | Python               |
@@ -247,7 +238,5 @@ Whereas `xformers` is strictly tied to a `torch` release, `flash attention 2` is
 |                  | 12.4.1, 12.5.1, 12.6.3, 12.8.1, 12.9.1*       | 3.12 (py3 wheel)     |
 +------------------+-----------------------------------------------+----------------------+
 ```
-> \* Windows builder used CUDA 12.9.0 for the 12.9.1 entry.
-
 
 Hope this helps!
