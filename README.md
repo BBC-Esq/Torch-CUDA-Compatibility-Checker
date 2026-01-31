@@ -7,7 +7,7 @@
 2) Create a virtual environment and activate it.
 3) pip install ```pyside6```
 4) Then run the script.
-   > Or use the .exe installer, which only works on Windows.
+   > [Or download the Windows installer](https://github.com/BBC-Esq/Torch-CUDA-Compatibility-Checker/releases/latest/download/TorchCUDAChecker_Setup.exe)
 
 ## Option 2 - Read my explanation and determing compatibility using your brain power.
 
