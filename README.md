@@ -9,7 +9,7 @@
 4) Then run the script.
    > [Or download the Windows installer](https://github.com/BBC-Esq/Torch-CUDA-Compatibility-Checker/releases/latest/download/TorchCUDAChecker_Setup.exe)
 
-## Option 2 - Read my explanation and determing compatibility using your brain power.
+## Option 2 - Read my explanation and determe compatibility using your brain power.
 
 ### `torch` & CUDA Compatibility
 
