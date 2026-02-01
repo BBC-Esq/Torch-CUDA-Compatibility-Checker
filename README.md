@@ -1,6 +1,5 @@
 <div align="center">
-
-<img width="1536" height="580" alt="splash" src="https://github.com/user-attachments/assets/3b3516f6-46bb-4bc0-9ada-8a68b77b739d" />
+<img width="1536" height="613" alt="splash" src="https://github.com/user-attachments/assets/6362149d-6f61-4017-a07c-d0ec481f2208" />
 <h4>Easily check compatibility between torch, cuda, flash attention 2, and other common machine learning libraries!</h4>
 
 </div>
