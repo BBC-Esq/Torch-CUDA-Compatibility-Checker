@@ -1,15 +1,34 @@
-# Torch-CUDA-Compatibility-Checker (last updated 1/31/2026)
-> Check compatibility between torch, cuda, flash attention 2, and similar libraries.
-> You can either run this program to determine compatibility automatically or read further below to figure things out manually.
+<div align="center">
 
-## Option 1 - Running this program.
-1) Download the script
-2) Create a virtual environment and activate it.
-3) pip install ```pyside6```
-4) Then run the script.
-   > [Or download the Windows installer](https://github.com/BBC-Esq/Torch-CUDA-Compatibility-Checker/releases/latest/download/TorchCUDAChecker_Setup.exe)
+<img width="1536" height="580" alt="splash" src="https://github.com/user-attachments/assets/3b3516f6-46bb-4bc0-9ada-8a68b77b739d" />
+<h4>Check compatibility between torch, cuda, flash attention 2, and other common machine learning libraries with ease!</h4>
 
-## Option 2 - Read my explanation and determe compatibility using your brain power.
+</div>
+
+</div>
+
+<div align="center"> <h2>Installation</h2></div>
+  
+### Download the latest "release," extract, and run the following commands:
+
+```
+python -m venv .
+```
+```
+.\Scripts\activate
+```
+```
+pip install pyside6
+```
+```
+test_compatibility.py
+```
+
+</div>
+
+### Alternatively, you can [download the Windows installer](https://github.com/BBC-Esq/Torch-CUDA-Compatibility-Checker/releases/latest/download/TorchCUDAChecker_Setup.exe)
+
+<div align="center"> <h2>Guide</h2></div>
 
 ### `torch` & CUDA Compatibility
 
@@ -238,5 +257,3 @@ Whereas `xformers` is strictly tied to a `torch` release, `flash attention 2` is
 |                  | 12.4.1, 12.5.1, 12.6.3, 12.8.1, 12.9.1*       | 3.12 (py3 wheel)     |
 +------------------+-----------------------------------------------+----------------------+
 ```
-
-Hope this helps!
