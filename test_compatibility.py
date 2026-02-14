@@ -1,9 +1,9 @@
 import sys
 import os
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                               QHBoxLayout, QLabel, QComboBox, QPushButton, 
-                               QTableWidget, QTableWidgetItem, QTabWidget,
-                               QGroupBox, QScrollArea, QTextEdit, QAbstractItemView)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+                               QGridLayout, QLabel, QComboBox, QCheckBox,
+                               QPushButton, QTableWidget, QTableWidgetItem,
+                               QTabWidget, QGroupBox, QAbstractItemView)
 from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QFont, QColor
 
@@ -15,7 +15,7 @@ WINDOWS COMPATIBILITY NOTES:
 - cu130 wheels exist for Windows but lack cuDNN support (cuDNN 9.x for CUDA 13.x is Linux-only)
 
 STABILITY STATUS NOTE:
-- cu129 stability status is undocumented in RELEASE.md for Torch 2.10/2.9.1 even though wheels are built (marked with †)
+- cu129 stability status is undocumented in RELEASE.md for Torch 2.10/2.9.x even though wheels are built (marked with †)
 
 TRITON COMPATIBILITY NOTE:
 - PyTorch hard-pins a specific triton version in install_triton_wheel.sh + triton_version.txt. In contrast, the release notes in the triton-windows repo says all patch versions are compatible.
@@ -25,6 +25,9 @@ FLASH ATTENTION NOTE:
 
 BITSANDBYTES NOTE:
 - bitsandbytes is primarily CUDA/Python dependent.  Versions marked with * indicate assumed compatibility (not officially tested)
+
+PATCH VERSION NOTE:
+- Versions marked with ~ indicate a CUDA patch version mismatch (same major.minor, different patch).  Use at your own discretion.
 """
 
         self.torch_cuda = [
@@ -37,6 +40,7 @@ BITSANDBYTES NOTE:
             {"torch": "2.9.1", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
             {"torch": "2.9.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
             {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False, "stability_undocumented": False},
+            {"torch": "2.9.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": True},
             {"torch": "2.9.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
             {"torch": "2.9.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
             {"torch": "2.8.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
@@ -53,6 +57,8 @@ BITSANDBYTES NOTE:
             {"torch": "2.6.0", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.1.0.70", "windows": True, "stability_undocumented": False},
         ]
 
+        # cuda_versions uses major.minor (e.g. "12.4") to match against
+        # the full versions in torch_cuda (e.g. "12.4.1") via major.minor extraction
         self.torch_python_triton = [
             {"torch": "2.10.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"], 
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.6.0", "triton_compat": ["3.6.0"], "sympy": ">=1.13.3"},
@@ -219,7 +225,10 @@ class CompatibilityChecker(QMainWindow):
         self.settings = QSettings(get_settings_path(), QSettings.IniFormat)
         self.data = CompatibilityData()
         self.init_ui()
+        self._block_updates = True
         self.load_settings()
+        self._block_updates = False
+        self.update_compatibility()
 
     def init_ui(self):
         self.setWindowTitle("PyTorch CUDA Compatibility Checker")
@@ -248,81 +257,86 @@ class CompatibilityChecker(QMainWindow):
         selection_group = QGroupBox("Select Library Versions")
         selection_layout = QVBoxLayout()
 
-        row1 = QHBoxLayout()
-        
-        self.torch_label = QLabel("PyTorch:")
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(8)
+
+        # Row 0: PyTorch, Python, CUDA, Windows Only
         self.torch_combo = QComboBox()
         self.torch_combo.addItem("Any")
-        self.torch_combo.addItems(sorted(set([x["torch"] for x in self.data.torch_cuda]), reverse=True))
+        self.torch_combo.addItems(sorted(set(x["torch"] for x in self.data.torch_cuda), reverse=True))
+        self.torch_combo.setMinimumWidth(130)
         self.torch_combo.currentTextChanged.connect(self.update_compatibility)
 
-        self.python_label = QLabel("Python:")
         self.python_combo = QComboBox()
         self.python_combo.addItem("Any")
         all_python = set()
         for item in self.data.torch_python_triton:
             all_python.update(item["python"])
         self.python_combo.addItems(sorted(all_python, reverse=True))
+        self.python_combo.setMinimumWidth(130)
         self.python_combo.currentTextChanged.connect(self.update_compatibility)
 
-        self.cuda_label = QLabel("CUDA:")
         self.cuda_combo = QComboBox()
         self.cuda_combo.addItem("Any")
-        self.cuda_combo.addItems(sorted(set([x["cuda"] for x in self.data.torch_cuda]), reverse=True))
+        self.cuda_combo.addItems(sorted(set(x["cuda"] for x in self.data.torch_cuda), reverse=True))
+        self.cuda_combo.setMinimumWidth(130)
         self.cuda_combo.currentTextChanged.connect(self.update_compatibility)
 
-        self.windows_only_check = QPushButton("Windows Only")
-        self.windows_only_check.setCheckable(True)
+        self.windows_only_check = QCheckBox("Windows Only (hide combos lacking cuDNN on Windows)")
         self.windows_only_check.setChecked(True)
-        self.windows_only_check.clicked.connect(self.update_compatibility)
+        self.windows_only_check.stateChanged.connect(self.update_compatibility)
 
-        row1.addWidget(self.torch_label)
-        row1.addWidget(self.torch_combo)
-        row1.addWidget(self.python_label)
-        row1.addWidget(self.python_combo)
-        row1.addWidget(self.cuda_label)
-        row1.addWidget(self.cuda_combo)
-        row1.addWidget(self.windows_only_check)
-        selection_layout.addLayout(row1)
+        grid.addWidget(QLabel("PyTorch:"), 0, 0, Qt.AlignRight)
+        grid.addWidget(self.torch_combo, 0, 1)
+        grid.addWidget(QLabel("Python:"), 0, 2, Qt.AlignRight)
+        grid.addWidget(self.python_combo, 0, 3)
+        grid.addWidget(QLabel("CUDA:"), 0, 4, Qt.AlignRight)
+        grid.addWidget(self.cuda_combo, 0, 5)
+        grid.addWidget(self.windows_only_check, 0, 6, 1, 2)
 
-        row2 = QHBoxLayout()
-
-        self.fa2_label = QLabel("Flash Attn 2:")
+        # Row 1: Flash Attn 2, Xformers, Triton, bitsandbytes
         self.fa2_combo = QComboBox()
         self.fa2_combo.addItem("Any")
-        self.fa2_combo.addItems(sorted(set([x["fa2"] for x in self.data.flash_attention]), reverse=True))
+        self.fa2_combo.addItems(sorted(set(x["fa2"] for x in self.data.flash_attention), reverse=True))
+        self.fa2_combo.setMinimumWidth(130)
         self.fa2_combo.currentTextChanged.connect(self.update_compatibility)
 
-        self.xformers_label = QLabel("Xformers:")
         self.xformers_combo = QComboBox()
         self.xformers_combo.addItem("Any")
         self.xformers_combo.addItems([x["xformers"] for x in self.data.xformers])
+        self.xformers_combo.setMinimumWidth(130)
         self.xformers_combo.currentTextChanged.connect(self.update_compatibility)
 
-        self.triton_label = QLabel("Triton:")
         self.triton_combo = QComboBox()
         self.triton_combo.addItem("Any")
         all_triton = set()
         for item in self.data.torch_python_triton:
             all_triton.update(item["triton_compat"])
         self.triton_combo.addItems(sorted(all_triton, reverse=True))
+        self.triton_combo.setMinimumWidth(130)
         self.triton_combo.currentTextChanged.connect(self.update_compatibility)
 
-        self.bnb_label = QLabel("bitsandbytes:")
         self.bnb_combo = QComboBox()
         self.bnb_combo.addItem("Any")
         self.bnb_combo.addItems([x["bnb"] for x in self.data.bitsandbytes])
+        self.bnb_combo.setMinimumWidth(130)
         self.bnb_combo.currentTextChanged.connect(self.update_compatibility)
 
-        row2.addWidget(self.fa2_label)
-        row2.addWidget(self.fa2_combo)
-        row2.addWidget(self.xformers_label)
-        row2.addWidget(self.xformers_combo)
-        row2.addWidget(self.triton_label)
-        row2.addWidget(self.triton_combo)
-        row2.addWidget(self.bnb_label)
-        row2.addWidget(self.bnb_combo)
-        selection_layout.addLayout(row2)
+        grid.addWidget(QLabel("Flash Attn 2:"), 1, 0, Qt.AlignRight)
+        grid.addWidget(self.fa2_combo, 1, 1)
+        grid.addWidget(QLabel("Xformers:"), 1, 2, Qt.AlignRight)
+        grid.addWidget(self.xformers_combo, 1, 3)
+        grid.addWidget(QLabel("Triton:"), 1, 4, Qt.AlignRight)
+        grid.addWidget(self.triton_combo, 1, 5)
+        grid.addWidget(QLabel("bitsandbytes:"), 1, 6, Qt.AlignRight)
+        grid.addWidget(self.bnb_combo, 1, 7)
+
+        # Let combo columns stretch equally
+        for col in (1, 3, 5, 7):
+            grid.setColumnStretch(col, 1)
+
+        selection_layout.addLayout(grid)
 
         reset_btn = QPushButton("Reset All")
         reset_btn.clicked.connect(self.reset_selections)
@@ -336,16 +350,16 @@ class CompatibilityChecker(QMainWindow):
         self.compat_table = QTableWidget()
         self.compat_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.compat_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.compat_table.horizontalHeader().setStretchLastSection(True)
         self.tabs.addTab(self.compat_table, "Compatible Combinations")
 
         self.metapackage_table = QTableWidget()
         self.metapackage_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.metapackage_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.metapackage_table.horizontalHeader().setStretchLastSection(True)
         self.tabs.addTab(self.metapackage_table, "CUDA Metapackages")
 
         layout.addWidget(self.tabs)
-
-        self.update_compatibility()
 
     def load_settings(self):
         if self.settings.contains("window/geometry"):
@@ -356,16 +370,44 @@ class CompatibilityChecker(QMainWindow):
             tab_index = int(self.settings.value("window/tab_index"))
             self.tabs.setCurrentIndex(tab_index)
 
+        filter_combos = {
+            "filters/torch": self.torch_combo,
+            "filters/python": self.python_combo,
+            "filters/cuda": self.cuda_combo,
+            "filters/fa2": self.fa2_combo,
+            "filters/xformers": self.xformers_combo,
+            "filters/triton": self.triton_combo,
+            "filters/bnb": self.bnb_combo,
+        }
+        for key, combo in filter_combos.items():
+            if self.settings.contains(key):
+                val = self.settings.value(key)
+                idx = combo.findText(val)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+
+        if self.settings.contains("filters/windows_only"):
+            self.windows_only_check.setChecked(self.settings.value("filters/windows_only", "true") == "true")
+
     def save_settings(self):
         self.settings.setValue("window/geometry", self.saveGeometry())
         self.settings.setValue("window/state", self.saveState())
         self.settings.setValue("window/tab_index", self.tabs.currentIndex())
+        self.settings.setValue("filters/torch", self.torch_combo.currentText())
+        self.settings.setValue("filters/python", self.python_combo.currentText())
+        self.settings.setValue("filters/cuda", self.cuda_combo.currentText())
+        self.settings.setValue("filters/fa2", self.fa2_combo.currentText())
+        self.settings.setValue("filters/xformers", self.xformers_combo.currentText())
+        self.settings.setValue("filters/triton", self.triton_combo.currentText())
+        self.settings.setValue("filters/bnb", self.bnb_combo.currentText())
+        self.settings.setValue("filters/windows_only", "true" if self.windows_only_check.isChecked() else "false")
 
     def closeEvent(self, event):
         self.save_settings()
         super().closeEvent(event)
 
     def reset_selections(self):
+        self._block_updates = True
         self.torch_combo.setCurrentIndex(0)
         self.python_combo.setCurrentIndex(0)
         self.cuda_combo.setCurrentIndex(0)
@@ -373,20 +415,34 @@ class CompatibilityChecker(QMainWindow):
         self.xformers_combo.setCurrentIndex(0)
         self.triton_combo.setCurrentIndex(0)
         self.bnb_combo.setCurrentIndex(0)
+        self._block_updates = False
+        self.update_compatibility()
 
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
+        cuda_short = '.'.join(cuda_version.split('.')[:2])  # e.g. "13.0"
         bnb_versions = []
         bnb_has_assumed = False
+        bnb_has_patch_diff = False
         for bnb in self.data.bitsandbytes:
-            if python_version in bnb["python"] and cuda_version in bnb["cuda"]:
+            if python_version not in bnb["python"]:
+                continue
+            if cuda_version in bnb["cuda"]:
+                # Exact match
                 version_str = bnb["bnb"]
                 if cuda_version in bnb.get("assumed_cuda", []):
                     version_str += "*"
                     bnb_has_assumed = True
                 bnb_versions.append(version_str)
-        return bnb_versions, bnb_has_assumed
+            elif any(c.rsplit('.', 1)[0] == cuda_short for c in bnb["cuda"]):
+                # Patch-version-diff match
+                version_str = bnb["bnb"] + "~"
+                bnb_has_patch_diff = True
+                bnb_versions.append(version_str)
+        return bnb_versions, bnb_has_assumed, bnb_has_patch_diff
 
     def update_compatibility(self):
+        if getattr(self, '_block_updates', False):
+            return
         torch_sel = self.torch_combo.currentText() if self.torch_combo.currentText() != "Any" else None
         python_sel = self.python_combo.currentText() if self.python_combo.currentText() != "Any" else None
         cuda_sel = self.cuda_combo.currentText() if self.cuda_combo.currentText() != "Any" else None
@@ -444,20 +500,36 @@ class CompatibilityChecker(QMainWindow):
                         if not matching_fa2:
                             continue
 
-                    xf_compat = [x for x in self.data.xformers 
-                                 if x["torch"] == tc["torch"] and tc["cuda"] in x["cuda"]]
+                    # Exact CUDA match for xformers
+                    xf_exact = [x for x in self.data.xformers
+                                if x["torch"] == tc["torch"] and tc["cuda"] in x["cuda"]]
+                    # Patch-version-diff match (same major.minor, different patch)
+                    xf_patch_diff = []
+                    if not xf_exact:
+                        xf_patch_diff = [x for x in self.data.xformers
+                                         if x["torch"] == tc["torch"] and
+                                         any(xc.rsplit('.', 1)[0] == cuda_short
+                                             for xc in x["cuda"])]
 
-                    xf_versions = [x["xformers"] for x in xf_compat] if xf_compat else ["-"]
+                    xf_has_patch_diff = False
+                    if xf_exact:
+                        xf_versions = [x["xformers"] for x in xf_exact]
+                    elif xf_patch_diff:
+                        xf_versions = [x["xformers"] + "~" for x in xf_patch_diff]
+                        xf_has_patch_diff = True
+                    else:
+                        xf_versions = ["-"]
 
-                    if xformers_sel and xformers_sel not in xf_versions:
-                        continue
+                    if xformers_sel:
+                        if xformers_sel not in [v.rstrip("~") for v in xf_versions]:
+                            continue
 
-                    bnb_versions, bnb_has_assumed = self.get_bnb_for_cuda_python(tc["cuda"], py_ver)
+                    bnb_versions, bnb_has_assumed, bnb_has_patch_diff = self.get_bnb_for_cuda_python(tc["cuda"], py_ver)
                     if not bnb_versions:
                         bnb_versions = ["-"]
 
                     if bnb_sel:
-                        matching_bnb = [v for v in bnb_versions if v.replace("*", "") == bnb_sel]
+                        matching_bnb = [v for v in bnb_versions if v.replace("*", "").rstrip("~") == bnb_sel]
                         if not matching_bnb:
                             continue
 
@@ -490,8 +562,10 @@ class CompatibilityChecker(QMainWindow):
                         "fa2": ", ".join(sorted(fa2_versions, reverse=True)),
                         "fa2_has_assumed": fa2_has_assumed,
                         "xformers": ", ".join(xf_versions[:3]) + ("..." if len(xf_versions) > 3 else ""),
+                        "xf_has_patch_diff": xf_has_patch_diff,
                         "bnb": ", ".join(bnb_versions[:3]) + ("..." if len(bnb_versions) > 3 else ""),
                         "bnb_has_assumed": bnb_has_assumed,
+                        "bnb_has_patch_diff": bnb_has_patch_diff,
                         "windows": windows_support,
                         "stability_undocumented": stability_undocumented
                     })
@@ -501,41 +575,55 @@ class CompatibilityChecker(QMainWindow):
             self.compat_table.setRowCount(len(compatible))
             self.compat_table.setColumnCount(11)
             self.compat_table.setHorizontalHeaderLabels(
-                ["PyTorch", "Torchvision", "Torchaudio", "Python", "CUDA", "cuDNN", "Triton", "Flash Attn 2", "Xformers", "bitsandbytes", "Windows"])
+                ["PyTorch", "Torchvision", "Torchaudio", "Python", "CUDA", "cuDNN", "Triton", "Flash Attn 2", "Xformers", "bitsandbytes", "Win cuDNN"])
 
             for i, combo in enumerate(compatible):
-                self.compat_table.setItem(i, 0, QTableWidgetItem(combo["torch"]))
-                self.compat_table.setItem(i, 1, QTableWidgetItem(combo["torchvision"]))
-                self.compat_table.setItem(i, 2, QTableWidgetItem(combo["torchaudio"]))
-                self.compat_table.setItem(i, 3, QTableWidgetItem(combo["python"]))
-                
-                cuda_item = QTableWidgetItem(combo["cuda"])
+                def make_item(text):
+                    item = QTableWidgetItem(text)
+                    item.setTextAlignment(Qt.AlignCenter)
+                    return item
+
+                self.compat_table.setItem(i, 0, make_item(combo["torch"]))
+                self.compat_table.setItem(i, 1, make_item(combo["torchvision"]))
+                self.compat_table.setItem(i, 2, make_item(combo["torchaudio"]))
+                self.compat_table.setItem(i, 3, make_item(combo["python"]))
+
+                cuda_item = make_item(combo["cuda"])
                 if combo["stability_undocumented"]:
                     cuda_item.setBackground(QColor(147, 112, 219))
                     cuda_item.setForeground(QColor(255, 255, 255))
                     cuda_item.setToolTip("† = Stability status undocumented in RELEASE.md (wheel exists but not listed as stable or experimental)")
                 self.compat_table.setItem(i, 4, cuda_item)
-                
-                self.compat_table.setItem(i, 5, QTableWidgetItem(combo["cudnn"]))
-                self.compat_table.setItem(i, 6, QTableWidgetItem(combo["triton"]))
-                
-                fa2_item = QTableWidgetItem(combo["fa2"])
+
+                self.compat_table.setItem(i, 5, make_item(combo["cudnn"]))
+                self.compat_table.setItem(i, 6, make_item(combo["triton"]))
+
+                fa2_item = make_item(combo["fa2"])
                 if combo["fa2_has_assumed"]:
                     fa2_item.setBackground(QColor(255, 165, 0))
                     fa2_item.setForeground(QColor(0, 0, 0))
                     fa2_item.setToolTip("* = Assumed compatible (patch version, not officially tested)")
                 self.compat_table.setItem(i, 7, fa2_item)
-                
-                self.compat_table.setItem(i, 8, QTableWidgetItem(combo["xformers"]))
-                
-                bnb_item = QTableWidgetItem(combo["bnb"])
-                if combo["bnb_has_assumed"]:
+
+                xf_item = make_item(combo["xformers"])
+                if combo["xf_has_patch_diff"]:
+                    xf_item.setBackground(QColor(100, 149, 237))
+                    xf_item.setForeground(QColor(255, 255, 255))
+                    xf_item.setToolTip("~ = CUDA patch version differs (built against a different patch version but same major.minor)")
+                self.compat_table.setItem(i, 8, xf_item)
+
+                bnb_item = make_item(combo["bnb"])
+                if combo["bnb_has_patch_diff"]:
+                    bnb_item.setBackground(QColor(100, 149, 237))
+                    bnb_item.setForeground(QColor(255, 255, 255))
+                    bnb_item.setToolTip("~ = CUDA patch version differs (built against a different patch version but same major.minor)")
+                elif combo["bnb_has_assumed"]:
                     bnb_item.setBackground(QColor(255, 165, 0))
                     bnb_item.setForeground(QColor(0, 0, 0))
                     bnb_item.setToolTip("* = Assumed compatible (not officially tested)")
                 self.compat_table.setItem(i, 9, bnb_item)
-                
-                windows_item = QTableWidgetItem(combo["windows"])
+
+                windows_item = make_item(combo["windows"])
                 if combo["windows"] == "No (cuDNN)":
                     windows_item.setBackground(QColor(255, 200, 100))
                     windows_item.setForeground(QColor(0, 0, 0))
@@ -554,23 +642,49 @@ class CompatibilityChecker(QMainWindow):
     def update_metapackages(self, cuda_version):
         self.metapackage_table.clear()
 
-        if cuda_version and cuda_version in self.data.cuda_metapackages:
-            packages = self.data.cuda_metapackages[cuda_version]
-            self.metapackage_table.setRowCount(len(packages))
-            self.metapackage_table.setColumnCount(2)
-            self.metapackage_table.setHorizontalHeaderLabels(["Package", f"Version (CUDA {cuda_version})"])
+        if cuda_version:
+            # Single CUDA version selected
+            if cuda_version in self.data.cuda_metapackages:
+                packages = self.data.cuda_metapackages[cuda_version]
+                self.metapackage_table.setRowCount(len(packages))
+                self.metapackage_table.setColumnCount(2)
+                self.metapackage_table.setHorizontalHeaderLabels(["Package", cuda_version])
 
-            for i, (pkg, ver) in enumerate(packages.items()):
-                self.metapackage_table.setItem(i, 0, QTableWidgetItem(pkg))
-                self.metapackage_table.setItem(i, 1, QTableWidgetItem(ver))
+                for i, (pkg, ver) in enumerate(packages.items()):
+                    pkg_item = QTableWidgetItem(pkg)
+                    pkg_item.setTextAlignment(Qt.AlignCenter)
+                    ver_item = QTableWidgetItem(ver)
+                    ver_item.setTextAlignment(Qt.AlignCenter)
+                    self.metapackage_table.setItem(i, 0, pkg_item)
+                    self.metapackage_table.setItem(i, 1, ver_item)
+
+                self.metapackage_table.resizeColumnsToContents()
+            else:
+                self.metapackage_table.setRowCount(1)
+                self.metapackage_table.setColumnCount(1)
+                self.metapackage_table.setHorizontalHeaderLabels(["Message"])
+                self.metapackage_table.setItem(0, 0, QTableWidgetItem("No metapackage data available for this CUDA version"))
+        else:
+            # "Any" selected — show all CUDA versions as columns
+            cuda_versions = sorted(self.data.cuda_metapackages.keys())
+            package_names = list(next(iter(self.data.cuda_metapackages.values())).keys())
+
+            self.metapackage_table.setRowCount(len(package_names))
+            self.metapackage_table.setColumnCount(1 + len(cuda_versions))
+            self.metapackage_table.setHorizontalHeaderLabels(["Package"] + cuda_versions)
+
+            for i, pkg in enumerate(package_names):
+                pkg_item = QTableWidgetItem(pkg)
+                pkg_item.setTextAlignment(Qt.AlignCenter)
+                self.metapackage_table.setItem(i, 0, pkg_item)
+
+                for col, cv in enumerate(cuda_versions, start=1):
+                    ver = self.data.cuda_metapackages[cv].get(pkg, "-")
+                    ver_item = QTableWidgetItem(ver)
+                    ver_item.setTextAlignment(Qt.AlignCenter)
+                    self.metapackage_table.setItem(i, col, ver_item)
 
             self.metapackage_table.resizeColumnsToContents()
-        else:
-            self.metapackage_table.setRowCount(1)
-            self.metapackage_table.setColumnCount(1)
-            self.metapackage_table.setHorizontalHeaderLabels(["Message"])
-            msg = "Select a CUDA version to view metapackage details" if not cuda_version else "No metapackage data available for this CUDA version"
-            self.metapackage_table.setItem(0, 0, QTableWidgetItem(msg))
 
 
 if __name__ == "__main__":
