@@ -1,18 +1,20 @@
 import sys
 import os
+import tempfile
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                               QGridLayout, QLabel, QComboBox, QCheckBox,
-                               QPushButton, QTableWidget, QTableWidgetItem,
-                               QTabWidget, QGroupBox, QAbstractItemView)
-from PySide6.QtCore import Qt, QSettings
-from PySide6.QtGui import QFont, QColor
+                               QHBoxLayout, QGridLayout, QLabel, QComboBox,
+                               QCheckBox, QPushButton, QTableWidget,
+                               QTableWidgetItem, QTabWidget, QGroupBox,
+                               QAbstractItemView, QMenu)
+from PySide6.QtCore import Qt, QSettings, QUrl
+from PySide6.QtGui import QFont, QColor, QDesktopServices, QAction
 
 class CompatibilityData:
     def __init__(self):
         self.windows_notes = """
 WINDOWS COMPATIBILITY NOTES:
 - cu126, cu128, and cu129 all have full cuDNN functionality on Windows
-- cu130 wheels exist for Windows but lack cuDNN support (cuDNN 9.x for CUDA 13.x is Linux-only)
+- CUDA 13.x wheels (cu130+) exist for Windows but lack cuDNN support (cuDNN 9.x for CUDA 13.x is Linux-only)
 
 STABILITY STATUS NOTE:
 - cu129 stability status is undocumented in RELEASE.md for Torch 2.10/2.9.x even though wheels are built (marked with †)
@@ -46,10 +48,10 @@ PATCH VERSION NOTE:
             {"torch": "2.8.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
             {"torch": "2.8.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
             {"torch": "2.8.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
-            {"torch": "2.7.1", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.1", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.7.1.26", "windows": True, "stability_undocumented": False},
             {"torch": "2.7.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
             {"torch": "2.7.1", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
-            {"torch": "2.7.0", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
+            {"torch": "2.7.0", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.7.1.26", "windows": True, "stability_undocumented": False},
             {"torch": "2.7.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
             {"torch": "2.7.0", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.5.1.17", "windows": True, "stability_undocumented": False},
             {"torch": "2.6.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.1.0.70", "windows": True, "stability_undocumented": False},
@@ -116,17 +118,23 @@ PATCH VERSION NOTE:
             {"fa2": "2.8.2", "python": "3.11", "torch": "2.8.0", "cuda": "12.8.1", "assumed": False},
             {"fa2": "2.8.2", "python": "3.12", "torch": "2.8.0", "cuda": "12.8.1", "assumed": False},
             {"fa2": "2.8.2", "python": "3.13", "torch": "2.8.0", "cuda": "12.8.1", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.10", "torch": "2.6.0", "cuda": "12.4.1", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.11", "torch": "2.6.0", "cuda": "12.4.1", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.12", "torch": "2.6.0", "cuda": "12.4.1", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.13", "torch": "2.6.0", "cuda": "12.4.1", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.10", "torch": "2.7.0", "cuda": "12.8.0", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.11", "torch": "2.7.0", "cuda": "12.8.0", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.12", "torch": "2.7.0", "cuda": "12.8.0", "assumed": False},
-            {"fa2": "2.7.4.post1", "python": "3.13", "torch": "2.7.0", "cuda": "12.8.0", "assumed": False},
         ]
 
+        # FA2 Windows wheel availability: (fa2_version, cu_moniker, torch_build_version) -> [python_versions]
+        # Used to construct download URLs from https://github.com/kingbri1/flash-attention/releases
+        self.fa2_windows_wheels = {
+            ("2.8.3", "cu124", "2.6.0"): ["3.11"],
+            ("2.8.3", "cu128", "2.7.0"): ["3.10", "3.11", "3.12", "3.13"],
+            ("2.8.3", "cu128", "2.8.0"): ["3.10", "3.11", "3.12", "3.13"],
+            ("2.8.3", "cu128", "2.9.0"): ["3.10", "3.11", "3.12", "3.13"],
+            ("2.8.2", "cu124", "2.6.0"): ["3.10", "3.11", "3.12", "3.13"],
+            ("2.8.2", "cu128", "2.7.0"): ["3.10", "3.11", "3.12", "3.13"],
+            ("2.8.2", "cu128", "2.8.0"): ["3.10", "3.11", "3.12", "3.13"],
+        }
+
         self.xformers = [
+            {"xformers": "0.0.35", "torch": "2.10.0", "fa2": "2.7.1-2.8.4", 
+             "cuda": ["12.8.1", "12.9.1", "13.0.1"], "notes": ""},
             {"xformers": "0.0.34", "torch": "2.10.0", "fa2": "2.7.1-2.8.4", 
              "cuda": ["12.8.1", "12.9.1", "13.0.1"], "notes": ""},
             {"xformers": "0.0.33.post2", "torch": "2.9.1", "fa2": "2.7.1-2.8.4", 
@@ -154,7 +162,9 @@ PATCH VERSION NOTE:
         ]
 
         self.bitsandbytes = [
-            {"bnb": "0.49.1", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"], 
+            {"bnb": "0.49.2", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
+            {"bnb": "0.49.1", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
             {"bnb": "0.49.0", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"], 
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
@@ -169,12 +179,6 @@ PATCH VERSION NOTE:
         ]
 
         self.cuda_metapackages = {
-            "12.4.1": {
-                "cuda-nvrtc": "12.4.127", "cuda-runtime": "12.4.127", "cuda-nvcc": "12.4.127",
-                "cuda-cupti": "12.4.127", "cublas": "12.4.5.8", "cufft": "11.2.1.3",
-                "curand": "10.3.5.147", "cusolver": "11.6.1.9", "cusparse": "12.3.1.170",
-                "cusparselt": "0.6.2", "nccl": "2.25.1", "nvtx": "12.4.127", "nvjitlink": "12.4.127"
-            },
             "12.6.3": {
                 "cuda-nvrtc": "12.6.77", "cuda-runtime": "12.6.77", "cuda-nvcc": "12.6.77",
                 "cuda-cupti": "12.6.80", "cublas": "12.6.4.1", "cufft": "11.3.0.4",
@@ -210,6 +214,24 @@ PATCH VERSION NOTE:
                 "cuda-cupti": "13.0.85", "cublas": "13.1.0.3", "cufft": "12.0.0.61",
                 "curand": "10.4.0.35", "cusolver": "12.0.4.66", "cusparse": "12.6.3.3",
                 "cusparselt": "-", "nccl": "-", "nvtx": "13.0.85", "nvjitlink": "13.0.88"
+            },
+            "13.1.0": {
+                "cuda-nvrtc": "13.1.80", "cuda-runtime": "13.1.80", "cuda-nvcc": "13.1.80",
+                "cuda-cupti": "13.1.75", "cublas": "13.2.0.9", "cufft": "12.1.0.31",
+                "curand": "10.4.1.34", "cusolver": "12.0.7.41", "cusparse": "12.7.2.19",
+                "cusparselt": "-", "nccl": "-", "nvtx": "13.1.68", "nvjitlink": "13.1.80"
+            },
+            "13.1.1": {
+                "cuda-nvrtc": "13.1.115", "cuda-runtime": "13.1.80", "cuda-nvcc": "13.1.115",
+                "cuda-cupti": "13.1.115", "cublas": "13.2.1.1", "cufft": "12.1.0.78",
+                "curand": "10.4.1.81", "cusolver": "12.0.9.81", "cusparse": "12.7.3.1",
+                "cusparselt": "-", "nccl": "-", "nvtx": "13.1.115", "nvjitlink": "13.1.115"
+            },
+            "13.2.0": {
+                "cuda-nvrtc": "13.2.51", "cuda-runtime": "13.2.51", "cuda-nvcc": "13.2.51",
+                "cuda-cupti": "13.2.23", "cublas": "13.3.0.5", "cufft": "12.2.0.37",
+                "curand": "10.4.2.51", "cusolver": "12.1.0.51", "cusparse": "12.7.9.17",
+                "cusparselt": "-", "nccl": "-", "nvtx": "13.2.20", "nvjitlink": "13.2.51"
             }
         }
 
@@ -338,9 +360,17 @@ class CompatibilityChecker(QMainWindow):
 
         selection_layout.addLayout(grid)
 
+        btn_layout = QHBoxLayout()
         reset_btn = QPushButton("Reset All")
         reset_btn.clicked.connect(self.reset_selections)
-        selection_layout.addWidget(reset_btn)
+        btn_layout.addWidget(reset_btn)
+        export_btn = QPushButton("Export to TXT")
+        export_btn.clicked.connect(self.export_to_txt)
+        btn_layout.addWidget(export_btn)
+        clipboard_btn = QPushButton("Copy to Clipboard")
+        clipboard_btn.clicked.connect(self.copy_to_clipboard)
+        btn_layout.addWidget(clipboard_btn)
+        selection_layout.addLayout(btn_layout)
 
         selection_group.setLayout(selection_layout)
         layout.addWidget(selection_group)
@@ -360,6 +390,27 @@ class CompatibilityChecker(QMainWindow):
         self.tabs.addTab(self.metapackage_table, "CUDA Metapackages")
 
         layout.addWidget(self.tabs)
+
+        # Legend bar
+        legend_layout = QHBoxLayout()
+        legend_layout.addStretch()
+        for color, symbol, desc in [
+            (QColor(147, 112, 219), "†", "Stability undocumented in RELEASE.md"),
+            (QColor(255, 165, 0), "*", "Assumed compatible (not officially tested)"),
+            (QColor(100, 149, 237), "~", "CUDA patch version differs (same major.minor)"),
+        ]:
+            swatch = QLabel()
+            swatch.setFixedSize(14, 14)
+            swatch.setStyleSheet(f"background-color: {color.name()}; border: 1px solid #888;")
+            legend_layout.addWidget(swatch)
+            legend_layout.addWidget(QLabel(f" {symbol} = {desc}"))
+            legend_layout.addSpacing(16)
+        legend_layout.addStretch()
+        layout.addLayout(legend_layout)
+
+        # Context menu for install commands
+        self.compat_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.compat_table.customContextMenuRequested.connect(self.show_context_menu)
 
     def load_settings(self):
         if self.settings.contains("window/geometry"):
@@ -417,6 +468,218 @@ class CompatibilityChecker(QMainWindow):
         self.bnb_combo.setCurrentIndex(0)
         self._block_updates = False
         self.update_compatibility()
+
+    def _read_table(self, table):
+        headers = []
+        for col in range(table.columnCount()):
+            header = table.horizontalHeaderItem(col)
+            headers.append(header.text() if header else "")
+        rows = []
+        for row in range(table.rowCount()):
+            cells = []
+            for col in range(table.columnCount()):
+                item = table.item(row, col)
+                cells.append(item.text() if item else "")
+            rows.append(cells)
+        return headers, rows
+
+    def _format_ascii_table(self, headers, rows):
+        if not headers:
+            return ""
+        col_widths = [len(h) for h in headers]
+        for row in rows:
+            for i, cell in enumerate(row):
+                col_widths[i] = max(col_widths[i], len(cell))
+        separator = "+" + "+".join("-" * (w + 2) for w in col_widths) + "+"
+        def format_row(cells):
+            parts = []
+            for cell, w in zip(cells, col_widths):
+                parts.append(f" {cell:<{w}} ")
+            return "|" + "|".join(parts) + "|"
+        lines = [separator, format_row(headers), separator]
+        for row in rows:
+            lines.append(format_row(row))
+        lines.append(separator)
+        return "\n".join(lines)
+
+    def _build_export_content(self):
+        lines = []
+        lines.append("PyTorch CUDA Compatibility Checker - Export")
+        lines.append("=" * 44)
+        lines.append("")
+
+        filters = [
+            ("PyTorch", self.torch_combo.currentText()),
+            ("Python", self.python_combo.currentText()),
+            ("CUDA", self.cuda_combo.currentText()),
+            ("Flash Attn 2", self.fa2_combo.currentText()),
+            ("Xformers", self.xformers_combo.currentText()),
+            ("Triton", self.triton_combo.currentText()),
+            ("bitsandbytes", self.bnb_combo.currentText()),
+            ("Windows Only", "Yes" if self.windows_only_check.isChecked() else "No"),
+        ]
+        lines.append("Active Filters:")
+        for name, val in filters:
+            lines.append(f"  {name}: {val}")
+        lines.append("")
+
+        lines.append("Compatible Combinations")
+        lines.append("-" * 23)
+        compat_headers, compat_rows = self._read_table(self.compat_table)
+        has_compat = compat_rows and not (len(compat_rows) == 1 and len(compat_headers) == 1 and compat_headers[0] == "Message")
+        if has_compat:
+            lines.append(self._format_ascii_table(compat_headers, compat_rows))
+        else:
+            lines.append("No compatible combinations found.")
+        lines.append("")
+
+        lines.append("CUDA Metapackages")
+        lines.append("-" * 17)
+        meta_headers, meta_rows = self._read_table(self.metapackage_table)
+        has_meta = meta_rows and not (len(meta_rows) == 1 and len(meta_headers) == 1 and meta_headers[0] == "Message")
+        if has_meta and has_compat:
+            cuda_col = compat_headers.index("CUDA") if "CUDA" in compat_headers else -1
+            if cuda_col >= 0:
+                compatible_cudas = set(row[cuda_col].rstrip("†") for row in compat_rows)
+                keep_cols = [0]
+                for i in range(1, len(meta_headers)):
+                    if meta_headers[i] in compatible_cudas:
+                        keep_cols.append(i)
+                if len(keep_cols) > 1:
+                    meta_headers = [meta_headers[i] for i in keep_cols]
+                    meta_rows = [[row[i] for i in keep_cols] for row in meta_rows]
+            lines.append(self._format_ascii_table(meta_headers, meta_rows))
+        elif has_meta:
+            lines.append(self._format_ascii_table(meta_headers, meta_rows))
+        else:
+            lines.append("No metapackage data available.")
+        lines.append("")
+
+        return "\n".join(lines)
+
+    def export_to_txt(self):
+        content = self._build_export_content()
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", prefix="torch_cuda_export_",
+                                          delete=False, encoding="utf-8")
+        tmp.write(content)
+        tmp.close()
+        QDesktopServices.openUrl(QUrl.fromLocalFile(tmp.name))
+
+    def copy_to_clipboard(self):
+        content = self._build_export_content()
+        QApplication.clipboard().setText(content)
+        self.statusBar().showMessage("Copied to clipboard", 3000)
+
+    def show_context_menu(self, pos):
+        row = self.compat_table.rowAt(pos.y())
+        if row < 0:
+            return
+        # Verify this is a real data row, not the "no results" message
+        if self.compat_table.columnCount() < 11:
+            return
+        menu = QMenu(self)
+        win_action = QAction("Copy Install Commands (Windows)", self)
+        linux_action = QAction("Copy Install Commands (Linux)", self)
+        win_action.triggered.connect(lambda: self.copy_install_commands(row, "windows"))
+        linux_action.triggered.connect(lambda: self.copy_install_commands(row, "linux"))
+        menu.addAction(win_action)
+        menu.addAction(linux_action)
+        menu.exec(self.compat_table.viewport().mapToGlobal(pos))
+
+    def _get_cell(self, row, col):
+        item = self.compat_table.item(row, col)
+        return item.text() if item else ""
+
+    def copy_install_commands(self, row, platform):
+        torch_ver = self._get_cell(row, 0)
+        torchvision_ver = self._get_cell(row, 1)
+        torchaudio_ver = self._get_cell(row, 2)
+        python_ver = self._get_cell(row, 3)
+        cuda_ver = self._get_cell(row, 4).rstrip("†")
+        fa2_cell = self._get_cell(row, 7)
+        xf_cell = self._get_cell(row, 8)
+        bnb_cell = self._get_cell(row, 9)
+
+        # Derive wheel moniker from CUDA version (e.g., "12.8.1" -> "cu128")
+        cuda_parts = cuda_ver.split(".")
+        moniker = f"cu{cuda_parts[0]}{cuda_parts[1]}"
+
+        # Look up triton pin and sympy from torch_python_triton
+        triton_pin = None
+        sympy_ver = None
+        for pt in self.data.torch_python_triton:
+            if pt["torch"] == torch_ver:
+                triton_pin = pt["triton"]
+                sympy_ver = pt["sympy"]
+                break
+
+        lines = []
+        lines.append(f"# PyTorch {torch_ver} + CUDA {cuda_ver} ({moniker})")
+        lines.append(f"pip install torch=={torch_ver} torchvision=={torchvision_ver} torchaudio=={torchaudio_ver} --index-url https://download.pytorch.org/whl/{moniker}")
+
+        if triton_pin:
+            lines.append("")
+            lines.append(f"# Triton")
+            lines.append(f"pip install triton=={triton_pin}")
+
+        if sympy_ver:
+            lines.append("")
+            lines.append(f"# Sympy")
+            lines.append(f'pip install "sympy{sympy_ver}"')
+
+        # Flash Attention 2
+        if fa2_cell and fa2_cell != "-":
+            fa2_ver = fa2_cell.split(",")[0].strip().rstrip("*")
+            lines.append("")
+            if platform == "linux":
+                lines.append(f"# Flash Attention 2")
+                lines.append(f"pip install flash-attn=={fa2_ver}")
+            else:
+                url = self._get_fa2_windows_url(fa2_ver, moniker, torch_ver, python_ver)
+                if url:
+                    lines.append(f"# Flash Attention 2 (Windows wheel from kingbri1/flash-attention)")
+                    lines.append(f"pip install {url}")
+                else:
+                    lines.append(f"# Flash Attention 2 (no pre-built Windows wheel found for this combination)")
+                    lines.append(f"# Check: https://github.com/kingbri1/flash-attention/releases")
+
+        # Xformers
+        if xf_cell and xf_cell != "-":
+            xf_ver = xf_cell.split(",")[0].strip().rstrip("~")
+            lines.append("")
+            lines.append(f"# Xformers")
+            lines.append(f"pip install xformers=={xf_ver}")
+
+        # bitsandbytes
+        if bnb_cell and bnb_cell != "-":
+            bnb_ver = bnb_cell.split(",")[0].strip().rstrip("*").rstrip("~")
+            lines.append("")
+            lines.append(f"# bitsandbytes")
+            lines.append(f"pip install bitsandbytes=={bnb_ver}")
+
+        content = "\n".join(lines)
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt",
+                                          prefix=f"torch_install_{platform}_",
+                                          delete=False, encoding="utf-8")
+        tmp.write(content)
+        tmp.close()
+        QDesktopServices.openUrl(QUrl.fromLocalFile(tmp.name))
+
+    def _get_fa2_windows_url(self, fa2_ver, moniker, torch_ver, python_ver):
+        py_nodot = python_ver.replace(".", "")
+        key = (fa2_ver, moniker, torch_ver)
+        # Direct match
+        available = self.data.fa2_windows_wheels.get(key)
+        if not available:
+            # Fallback for assumed compatibility (e.g., torch 2.9.1 -> try 2.9.0)
+            base_torch = torch_ver.rsplit(".", 1)[0] + ".0"
+            key = (fa2_ver, moniker, base_torch)
+            available = self.data.fa2_windows_wheels.get(key)
+        if available and python_ver in available:
+            return (f"https://github.com/kingbri1/flash-attention/releases/download/"
+                    f"v{fa2_ver}/flash_attn-{fa2_ver}%2B{moniker}torch{key[2]}"
+                    f"cxx11abiFALSE-cp{py_nodot}-cp{py_nodot}-win_amd64.whl")
+        return None
 
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
         cuda_short = '.'.join(cuda_version.split('.')[:2])  # e.g. "13.0"
@@ -561,9 +824,9 @@ class CompatibilityChecker(QMainWindow):
                         "triton": triton_display,
                         "fa2": ", ".join(sorted(fa2_versions, reverse=True)),
                         "fa2_has_assumed": fa2_has_assumed,
-                        "xformers": ", ".join(xf_versions[:3]) + ("..." if len(xf_versions) > 3 else ""),
+                        "xformers": ", ".join(xf_versions),
                         "xf_has_patch_diff": xf_has_patch_diff,
-                        "bnb": ", ".join(bnb_versions[:3]) + ("..." if len(bnb_versions) > 3 else ""),
+                        "bnb": ", ".join(bnb_versions),
                         "bnb_has_assumed": bnb_has_assumed,
                         "bnb_has_patch_diff": bnb_has_patch_diff,
                         "windows": windows_support,
