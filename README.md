@@ -52,17 +52,15 @@ Unfortunately, monikers like `cu126` or `cu128` don't specify the exact version�
 +--------------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
 |              |   12.6.3  |   12.8.0  |   12.8.1  |   12.9.1  |   13.0.0  |   13.0.2  |   13.1.0  |   13.1.1  |   13.2.0  |
 +--------------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
-| cuda-nvrtc   | 12.6.77   | 12.8.61   | 12.8.93   | 12.9.86   | 13.0.48   | 13.0.88   | 13.1.80   | 13.1.115  | 13.2.51   |
+| cuda-nvrtc   | 12.6.85   | 12.8.61   | 12.8.93   | 12.9.86   | 13.0.48   | 13.0.88   | 13.1.80   | 13.1.115  | 13.2.51   |
 | cuda-runtime | 12.6.77   | 12.8.57   | 12.8.90   | 12.9.79   | 13.0.48   | 13.0.96   | 13.1.80   | 13.1.80   | 13.2.51   |
-| cuda-nvcc    | 12.6.77   | 12.8.57   | 12.8.93   | 12.9.79   | 13.0.48   | 13.0.88   | 13.1.80   | 13.1.115  | 13.2.51   |
+| cuda-nvcc    | 12.6.85   | 12.8.61   | 12.8.93   | 12.9.86   | 13.0.48   | 13.0.88   | 13.1.80   | 13.1.115  | 13.2.51   |
 | cuda-cupti   | 12.6.80   | 12.8.57   | 12.8.90   | 12.9.79   | 13.0.48   | 13.0.85   | 13.1.75   | 13.1.115  | 13.2.23   |
 | cublas       | 12.6.4.1  | 12.8.3.14 | 12.8.4.1  | 12.9.1.4  | 13.0.0.19 | 13.1.0.3  | 13.2.0.9  | 13.2.1.1  | 13.3.0.5  |
 | cufft        | 11.3.0.4  | 11.3.3.41 | 11.3.3.83 | 11.4.1.4  | 12.0.0.15 | 12.0.0.61 | 12.1.0.31 | 12.1.0.78 | 12.2.0.37 |
 | curand       | 10.3.7.77 | 10.3.9.55 | 10.3.9.90 | 10.3.10.19| 10.4.0.35 | 10.4.0.35 | 10.4.1.34 | 10.4.1.81 | 10.4.2.51 |
 | cusolver     | 11.7.1.2  | 11.7.2.55 | 11.7.3.90 | 11.7.5.82 | 12.0.3.29 | 12.0.4.66 | 12.0.7.41 | 12.0.9.81 | 12.1.0.51 |
 | cusparse     | 12.5.4.2  | 12.5.7.53 | 12.5.8.93 | 12.5.10.65| 12.6.2.49 | 12.6.3.3  | 12.7.2.19 | 12.7.3.1  | 12.7.9.17 |
-| cusparselt   | 0.6.3     | 0.6.3     | 0.6.3     | 0.6.3     |     —     |     —     |     —     |     —     |     —     |
-| nccl         | 2.21.5    | 2.26.2    | 2.26.2    | 2.26.2    |     —     |     —     |     —     |     —     |     —     |
 | nvtx         | 12.6.77   | 12.8.55   | 12.8.90   | 12.9.79   | 13.0.39   | 13.0.85   | 13.1.68   | 13.1.115  | 13.2.20   |
 | nvjitlink    | 12.6.85   | 12.8.61   | 12.8.93   | 12.9.86   | 13.0.39   | 13.0.88   | 13.1.80   | 13.1.115  | 13.2.51   |
 +--------------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
@@ -71,27 +69,7 @@ Unfortunately, monikers like `cu126` or `cu128` don't specify the exact version�
 
 Overall, `torch` only tests with these specific versions of the CUDA libraries. I have personally encountered errors when, for example, installing version 12.4.0 instead of 12.4.1...and this holds true for `torch` as well as other libraries like `flash attention 2`, `xformers`, etc. (discussed further below). Basically, you need to fully understand which CUDA "release" the specific library versions you pip install originate from, which then allows you to determine if you're using a compatible version.
 
----
-
-### Official PyTorch Support Matrix
-
-PyTorch maintains an official [compatibility matrix](https://github.com/pytorch/pytorch/blob/main/RELEASE.md#release-compatibility-matrix) that summarizes supported Python and CUDA versions:
-```
-+-------+-----------------------------+----------------------------------------------+----------------------------------+
-| Torch | Python                      | Stable CUDA                                  | Experimental CUDA                |
-+-------+-----------------------------+----------------------------------------------+----------------------------------+
-| 2.11  | >=3.10, <=3.14 (3.14t exp.) | CUDA 12.6 + cuDNN 9.10.2.21,                |                                  |
-|       |                             | 12.8, 13.0 + cuDNN 9.17.1.4                 |                                  |
-| 2.10  | >=3.10, <=3.14 (3.14t exp.) | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 13.0 + cuDNN 9.15.1.9      |
-| 2.9   | >=3.10, <=3.14              | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 13.0 + cuDNN 9.13.0.50     |
-| 2.8   | >=3.9, <=3.13               | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 12.9 + cuDNN 9.10.2.21     |
-| 2.7   | >=3.9, <=3.13               | CUDA 12.6 + cuDNN 9.5.1.17                  | CUDA 12.8 + cuDNN 9.7.1.26      |
-| 2.6   | >=3.9, <=3.13               | CUDA 12.4 + cuDNN 9.1.0.70                  |                                  |
-+-------+-----------------------------+----------------------------------------------+----------------------------------+
-```
-> cu129 stability status isn't documented in the compatibility matrix for Torch 2.10/2.9.x even though wheels are built.
-
-However, when pip installing CUDA libraries it's essential to understand that libraries (like `torch`) are only tested with specific CUDA release versions, and you have to pip install the correct individual library versions associated with a particular CUDA release. In other words, "your mileage may vary" if you pip install library versions that haven't been fully tested by `torch` or other libraries. MOST times it will work, but sometimes it will not...
+Overall, `torch` only tests with these specific versions of the CUDA libraries. You need to understand which CUDA "release" the specific library versions you pip install originate from, which then allows you to determine if you're using a compatible version. The cuDNN versions pinned by each torch release can be found in the [build matrix script](https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py) for each tagged release.
 
 ---
 

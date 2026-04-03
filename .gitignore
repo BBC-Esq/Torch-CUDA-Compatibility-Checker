@@ -18,6 +18,9 @@ tools/
 .lock
 *.whl
 
+# Ground truth reference scripts
+ground-truth/
+
 # Installer
 installer/
 installer-output/
