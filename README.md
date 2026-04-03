@@ -36,6 +36,7 @@ The most recent `torch` wheels use naming conventions like `cu126`, `cu128`, `cu
 +--------+----------------------------------------+
 | Torch  | Specific CUDA Release                  |
 +--------+----------------------------------------+
+| 2.11.0 | 12.6.3, 12.8.1, 12.9.1, 13.0.2        |
 | 2.10.0 | 12.6.3, 12.8.1, 12.9.1, 13.0.0        |
 | 2.9.1  | 12.6.3, 12.8.1, 12.9.1, 13.0.0        |
 | 2.9.0  | 12.6.3, 12.8.1, 12.9.1, 13.0.0        |
@@ -79,6 +80,8 @@ PyTorch maintains an official [compatibility matrix](https://github.com/pytorch/
 +-------+-----------------------------+----------------------------------------------+----------------------------------+
 | Torch | Python                      | Stable CUDA                                  | Experimental CUDA                |
 +-------+-----------------------------+----------------------------------------------+----------------------------------+
+| 2.11  | >=3.10, <=3.14 (3.14t exp.) | CUDA 12.6 + cuDNN 9.10.2.21,                |                                  |
+|       |                             | 12.8, 13.0 + cuDNN 9.17.1.4                 |                                  |
 | 2.10  | >=3.10, <=3.14 (3.14t exp.) | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 13.0 + cuDNN 9.15.1.9      |
 | 2.9   | >=3.10, <=3.14              | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 13.0 + cuDNN 9.13.0.50     |
 | 2.8   | >=3.9, <=3.13               | CUDA 12.6, 12.8 + cuDNN 9.10.2.21           | CUDA 12.9 + cuDNN 9.10.2.21     |
@@ -138,7 +141,7 @@ NVIDIA promises that all cuDNN 9+ releases are compatible with all CUDA 12.x rel
 +-------------------+---------------------+-------------------+
 | cuDNN Package     | CUDA Toolkit        | Windows Support   |
 +-------------------+---------------------+-------------------+
-| 9.x for CUDA 13.x | 13.0, 13.1          | NOT SUPPORTED     |
+| 9.x for CUDA 13.x | 13.0, 13.1, 13.2    | NOT SUPPORTED     |
 | 9.x for CUDA 12.x | 12.0 - 12.9         | Driver >= 527.41  |
 +-------------------+---------------------+-------------------+
 ```
@@ -155,6 +158,7 @@ Not all torch wheels are fully functional on Windows:
 +--------+--------+--------------------------------------------------+
 | Torch  | Wheel  | Windows Status                                   |
 +--------+--------+--------------------------------------------------+
+| 2.11.0 | cu130  | No cuDNN support (cuDNN 9.x for CUDA 13 = Linux) |
 | 2.10.0 | cu130  | No cuDNN support (cuDNN 9.x for CUDA 13 = Linux) |
 | 2.9.1  | cu130  | No cuDNN support (cuDNN 9.x for CUDA 13 = Linux) |
 | 2.9.0  | cu130  | No cuDNN support (cuDNN 9.x for CUDA 13 = Linux) |
@@ -167,7 +171,7 @@ Not all torch wheels are fully functional on Windows:
 
 ### `xformers` Compatibility
 
-`xformers` is strictly tied to a specific `torch` version. However, it is a little more flexible regarding `flash attention 2` and `CUDA`.
+`xformers` is strictly tied to a specific `torch` version for releases prior to v0.0.34. Starting with v0.0.34, xformers declares `torch>=2.10` (upward compatible). It is also flexible regarding `flash attention 2` and `CUDA`.
 
 Consult these three scripts for the most up-to-date compatibility information:
 - [`torch`](https://github.com/facebookresearch/xformers/blob/main/.github/workflows/wheels.yml)
@@ -177,8 +181,8 @@ Consult these three scripts for the most up-to-date compatibility information:
 +------------------+--------+---------------+--------------------------------+
 | Xformers Version | Torch  |      FA2      |       CUDA (excl. 11.x)        |
 +------------------+--------+---------------+--------------------------------+
-| v0.0.35          | 2.10.0 | 2.7.1 - 2.8.4 | 12.8.1, 12.9.1, 13.0.1         |
-| v0.0.34          | 2.10.0 | 2.7.1 - 2.8.4 | 12.8.1, 12.9.1, 13.0.1         |
+| v0.0.35          | >=2.10 | 2.7.1 - 2.8.4 | 12.8.1, 12.9.1, 13.0.1         |
+| v0.0.34          | >=2.10 | 2.7.1 - 2.8.4 | 12.8.1, 12.9.1, 13.0.1         |
 | v0.0.33.post2    | 2.9.1  | 2.7.1 - 2.8.4 | 12.8.1, 12.9.0, 13.0.1         |
 | v0.0.33.post1    | 2.9.0  | 2.7.1 - 2.8.4 | 12.8.1, 12.9.0, 13.0.1         |
 | v0.0.33          | 2.9.0  | 2.7.1 - 2.8.4 | 12.8.1, 12.9.0, 13.0.1         |
