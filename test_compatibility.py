@@ -33,6 +33,10 @@ PATCH VERSION NOTE:
 """
 
         self.torch_cuda = [
+            {"torch": "2.11.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.17.1.4", "windows": False, "stability_undocumented": False},
+            {"torch": "2.11.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.17.1.4", "windows": True, "stability_undocumented": False},
+            {"torch": "2.11.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.17.1.4", "windows": True, "stability_undocumented": False},
+            {"torch": "2.11.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
             {"torch": "2.10.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.15.1.9", "windows": False, "stability_undocumented": False},
             {"torch": "2.10.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": True},
             {"torch": "2.10.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True, "stability_undocumented": False},
@@ -62,7 +66,9 @@ PATCH VERSION NOTE:
         # cuda_versions uses major.minor (e.g. "12.4") to match against
         # the full versions in torch_cuda (e.g. "12.4.1") via major.minor extraction
         self.torch_python_triton = [
-            {"torch": "2.10.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"], 
+            {"torch": "2.11.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.6.0", "triton_compat": ["3.6.0"], "sympy": ">=1.13.3"},
+            {"torch": "2.10.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.6.0", "triton_compat": ["3.6.0"], "sympy": ">=1.13.3"},
             {"torch": "2.9.1", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"], 
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.5.1", "triton_compat": ["3.5.0", "3.5.1"], "sympy": ">=1.13.3"},
@@ -79,6 +85,7 @@ PATCH VERSION NOTE:
         ]
 
         self.torch_ecosystem = {
+            "2.11.0": {"torchvision": "0.26.0", "torchaudio": "2.11.0"},
             "2.10.0": {"torchvision": "0.25.0", "torchaudio": "2.10.0"},
             "2.9.1": {"torchvision": "0.24.1", "torchaudio": "2.9.1"},
             "2.9.0": {"torchvision": "0.24.0", "torchaudio": "2.9.0"},
@@ -132,10 +139,12 @@ PATCH VERSION NOTE:
             ("2.8.2", "cu128", "2.8.0"): ["3.10", "3.11", "3.12", "3.13"],
         }
 
+        # Starting with v0.0.34, xformers declares torch>=2.10 (upward compatible)
+        # instead of pinning to an exact torch version. "torch_min" indicates this.
         self.xformers = [
-            {"xformers": "0.0.35", "torch": "2.10.0", "fa2": "2.7.1-2.8.4", 
+            {"xformers": "0.0.35", "torch": "2.10.0", "torch_min": True, "fa2": "2.7.1-2.8.4",
              "cuda": ["12.8.1", "12.9.1", "13.0.1"], "notes": ""},
-            {"xformers": "0.0.34", "torch": "2.10.0", "fa2": "2.7.1-2.8.4", 
+            {"xformers": "0.0.34", "torch": "2.10.0", "torch_min": True, "fa2": "2.7.1-2.8.4",
              "cuda": ["12.8.1", "12.9.1", "13.0.1"], "notes": ""},
             {"xformers": "0.0.33.post2", "torch": "2.9.1", "fa2": "2.7.1-2.8.4", 
              "cuda": ["12.8.1", "12.9.0", "13.0.1"], "notes": ""},
@@ -619,8 +628,12 @@ class CompatibilityChecker(QMainWindow):
 
         if triton_pin:
             lines.append("")
-            lines.append(f"# Triton")
-            lines.append(f"pip install triton=={triton_pin}")
+            if platform == "windows":
+                lines.append(f"# Triton (Windows)")
+                lines.append(f"pip install triton-windows=={triton_pin}")
+            else:
+                lines.append(f"# Triton")
+                lines.append(f"pip install triton=={triton_pin}")
 
         if sympy_ver:
             lines.append("")
@@ -764,13 +777,19 @@ class CompatibilityChecker(QMainWindow):
                             continue
 
                     # Exact CUDA match for xformers
+                    # torch_min entries (>=0.0.34) match any torch >= their stated version
+                    def xf_torch_match(xf, torch_ver):
+                        if xf.get("torch_min"):
+                            return tuple(int(p) for p in torch_ver.split('.')) >= tuple(int(p) for p in xf["torch"].split('.'))
+                        return xf["torch"] == torch_ver
+
                     xf_exact = [x for x in self.data.xformers
-                                if x["torch"] == tc["torch"] and tc["cuda"] in x["cuda"]]
+                                if xf_torch_match(x, tc["torch"]) and tc["cuda"] in x["cuda"]]
                     # Patch-version-diff match (same major.minor, different patch)
                     xf_patch_diff = []
                     if not xf_exact:
                         xf_patch_diff = [x for x in self.data.xformers
-                                         if x["torch"] == tc["torch"] and
+                                         if xf_torch_match(x, tc["torch"]) and
                                          any(xc.rsplit('.', 1)[0] == cuda_short
                                              for xc in x["cuda"])]
 
