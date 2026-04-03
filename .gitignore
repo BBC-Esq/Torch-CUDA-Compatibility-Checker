@@ -8,7 +8,6 @@ pyvenv.cfg
 __pycache__/
 
 # Local development files
-COMPATIBILITY.py
 install.py
 settings.ini
 splash.png
