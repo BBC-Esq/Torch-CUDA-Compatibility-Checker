@@ -99,7 +99,6 @@ WINDOWS-SPECIFIC LIMITATIONS
 | 2.9.1  | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
 | 2.9.0  | cu126  | Full support                                  |
 | 2.9.0  | cu128  | Full support                                  |
-| 2.9.0  | cu129  | Full support                                  |
 | 2.9.0  | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
 +--------+--------+-----------------------------------------------+
 
@@ -272,8 +271,9 @@ Xformers
 # cu126 builds use CUDA 12.8.1 toolkit from v0.0.31+ to avoid Flash3 segfault.
 # Only CUDA 12+ entries are shown (cu118 wheels also exist for older versions).
 #
-# Starting with v0.0.34, xformers declares torch>=2.10.0 (upward compatible)
-# instead of pinning to an exact torch version.
+# Starting with v0.0.35, xformers declares torch>=2.10 (upward compatible).
+# v0.0.34 pyproject.toml says torch>=2.10, but the published PyPI wheel metadata
+# pins torch==2.10.0 (exact). Only v0.0.35+ truly allows torch>=2.10.
 
 +------------------+--------+---------------+--------------------------------+
 | Xformers Version | Torch  |      FA2      |           CUDA 12+             |

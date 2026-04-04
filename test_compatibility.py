@@ -73,7 +73,7 @@ MARKERS:
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.6.0", "triton_compat": ["3.6.0"], "sympy": ">=1.13.3"},
             {"torch": "2.9.1", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"], 
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.5.1", "triton_compat": ["3.5.0", "3.5.1"], "sympy": ">=1.13.3"},
-            {"torch": "2.9.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"], 
+            {"torch": "2.9.0", "cuda_versions": ["12.6", "12.8", "13.0"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.5.0", "triton_compat": ["3.5.0", "3.5.1"], "sympy": ">=1.13.3"},
             {"torch": "2.8.0", "cuda_versions": ["12.6", "12.8", "12.9"], 
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.4.0", "triton_compat": ["3.4.0"], "sympy": ">=1.13.3"},
@@ -147,8 +147,10 @@ MARKERS:
             ("2.8.2", "cu128", "2.8.0"): ["3.10", "3.11", "3.12", "3.13"],
         }
 
-        # Starting with v0.0.34, xformers declares torch>=2.10 (upward compatible)
-        # instead of pinning to an exact torch version. "torch_min" indicates this.
+        # Starting with v0.0.35, xformers declares torch>=2.10 (upward compatible).
+        # v0.0.34 pyproject.toml says torch>=2.10, but the published PyPI wheel metadata
+        # pins torch==2.10.0 (exact). Only v0.0.35+ truly allows torch>=2.10.
+        # "torch_min" indicates upward compatibility (torch >= stated version).
         # Ground truth: wheels.yml (torch + CU_VERSIONS), flash.py (FA2 range),
         #               setup-build-cuda/action.yml (CUDA build toolkit)
         # CUDA values use torch_cuda versions for each CU moniker (for matching).
@@ -156,7 +158,7 @@ MARKERS:
         self.xformers = [
             {"xformers": "0.0.35", "torch": "2.10.0", "torch_min": True, "fa2": "2.7.1-2.8.4",
              "cuda": ["12.6.3", "12.8.1", "13.0.0"], "notes": ""},
-            {"xformers": "0.0.34", "torch": "2.10.0", "torch_min": True, "fa2": "2.7.1-2.8.4",
+            {"xformers": "0.0.34", "torch": "2.10.0", "fa2": "2.7.1-2.8.4",
              "cuda": ["12.6.3", "12.8.1", "13.0.0"], "notes": ""},
             {"xformers": "0.0.33.post2", "torch": "2.9.1", "fa2": "2.7.1-2.8.4",
              "cuda": ["12.6.3", "12.8.1", "13.0.0"], "notes": ""},
