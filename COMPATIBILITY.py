@@ -42,6 +42,17 @@ Torch and CUDA Compatibility
 * Obtained from: https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
   (check the tagged release, e.g. v2.11.0, for each torch version)
 
+# GPU architecture notes (torch 2.11.0+):
+#   - Volta (SM 7.0, e.g. V100) support was removed from cu128 and cu129 builds
+#     starting with torch 2.11.0 due to the update to cuDNN 9.15.1+, which is
+#     incompatible with Volta. Volta users should use cu126, which retains support.
+#   - CUDA 13.0 (cu130) only supports Turing (SM 7.5) and newer on Linux x86_64.
+#     Maxwell and Pascal GPUs are not supported under CUDA 13.0.
+#   - PyPI default: starting with torch 2.11.0, `pip install torch` installs the
+#     cu130 wheel by default (Linux x86_64 and aarch64). Users with CUDA 12.x-only
+#     drivers must specify an index URL for cu126/cu128/cu129.
+#   Source: https://github.com/pytorch/pytorch/releases/tag/v2.11.0
+
 
 
 # "Metapackage" versions per CUDA release version.
@@ -67,15 +78,36 @@ Torch and CUDA Compatibility
 ************
 cuDNN & CUDA
 ************
-# Nvidia promises that all cuDNN 9+ releases are compatible with all CUDA 12.x releases.
-+-------------------+---------------------+-------------------+
-| cuDNN Package     | CUDA Toolkit        | Windows Support   |
-+-------------------+---------------------+-------------------+
-| 9.x for CUDA 13.x | 13.0, 13.1, 13.2    | NOT SUPPORTED     |
-| 9.x for CUDA 12.x | 12.0 - 12.9         | Driver >= 527.41  |
-+-------------------+---------------------+-------------------+
+# Nvidia promises the CUDA 12.x build of any given cuDNN 9.x release is
+# forward-compatible with all CUDA 12.x toolkits. No equivalent promise
+# is published for CUDA 13.x.
++-------------------+---------------------------+----------------------+
+| cuDNN Package     | CUDA Toolkit              | Windows Support      |
++-------------------+---------------------------+----------------------+
+| 9.x for CUDA 13.x | 13.0, 13.1, 13.2          | NOT SUPPORTED [1]    |
+| 9.x for CUDA 12.x | 12.0-12.6, 12.8, 12.9 [2] | Driver >= 527.41     |
+|   + Blackwell GPU | 12.8, 12.9                | Driver >= 570.65 [3] |
++-------------------+---------------------------+----------------------+
+[1] Linux-only since cuDNN 9.11.0 (Jul 2025). On Windows, use WSL2 with
+    the Windows host driver -- do NOT install a Linux NVIDIA driver
+    inside the WSL distro. Host driver minimums above still apply.
+[2] CUDA 12.7 was never released by Nvidia, hence the gap.
+[3] Blackwell (cc 10.0, 12.0) requires CUDA >= 12.8, Linux driver
+    >= 570.26, Windows driver >= 570.65.
+
+* GPU floor: cuDNN 9.11+ requires Turing (cc 7.5). Volta, Pascal, and
+  Maxwell were removed in 9.11.0 (Jul 2025); 9.10.2 is the last 9.x
+  that supports them. For older hardware, use cuDNN 8.9.x.
+* Linux driver minimums: >= 525.60.13 (CUDA 12.x build),
+  >= 580.65.06 (CUDA 13.x build).
+* Recommended for tuning heuristics: cuDNN 9.20.0 + CUDA 13.2 (Linux).
+* Windows-only quirks: side-by-side install dropped in 9.10.0 (must
+  manually delete prior C:\Program Files\NVIDIA\CUDNN\v9.x tree before
+  upgrading); lib path moved from lib\ to lib\x64\ in 9.x; no static
+  archives, no JIT meta-package, no ARM64 on Windows.
+
 * taken from https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/support-matrix.html
-* current cuDNN release as of last check: 9.20.0
+* current cuDNN release as of last check: 9.20.0 (Mar 2026)
 
 
 *****************************
