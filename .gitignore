@@ -16,6 +16,7 @@ tools/
 # Misc
 .lock
 *.whl
+user_guide.html
 
 # Ground truth reference scripts
 ground-truth/
