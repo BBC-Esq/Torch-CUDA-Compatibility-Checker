@@ -258,6 +258,12 @@ MARKERS:
                 "cuda-cupti": "13.2.23", "cublas": "13.3.0.5", "cufft": "12.2.0.37",
                 "curand": "10.4.2.51", "cusolver": "12.1.0.51", "cusparse": "12.7.9.17",
                 "nvtx": "13.2.20", "nvjitlink": "13.2.51"
+            },
+            "13.2.1": {
+                "cuda-nvrtc": "13.2.78", "cuda-runtime": "13.2.75", "cuda-nvcc": "13.2.78",
+                "cuda-cupti": "13.2.75", "cublas": "13.4.0.1", "cufft": "12.2.0.46",
+                "curand": "10.4.2.55", "cusolver": "12.2.0.1", "cusparse": "12.7.10.1",
+                "nvtx": "13.2.75", "nvjitlink": "13.2.78"
             }
         }
 
