@@ -20,15 +20,17 @@ cuDNN:
 - The cuDNN column is informational — it shows what PyTorch tested with, not a requirement.
   Actual cuDNN compatibility is determined by CUDA version: 9.x for CUDA 12.x (Win+Linux), 9.x for CUDA 13.x (Linux only).
 
-WINDOWS:
-- cu126/cu128/cu129 have full cuDNN on Windows. CUDA 13.x wheels (cu130+) lack cuDNN (Linux-only).
+PLATFORM TOGGLE:
+- Windows mode: hides torch wheels lacking Windows cuDNN (cu13x), uses Windows FA2 wheels (kingbri1).
+- Linux mode: shows all torch wheels, uses official Linux FA2 wheels (Dao-AILab). Triton install uses `triton` (not `triton-windows`).
 
 TRITON:
-- PyTorch hard-pins a specific triton version. The triton-windows repo says patch versions within a minor are compatible.
+- PyTorch hard-pins a specific triton version (same pin on Linux and Windows). The triton-windows repo says patch versions within a minor are compatible.
 
-FLASH ATTENTION 2 (WINDOWS):
-- Windows FA2 wheels from kingbri1/flash-attention. Data last verified: April 3, 2026.
-  Check https://github.com/kingbri1/flash-attention/releases for latest available wheels.
+FLASH ATTENTION 2:
+- Windows: wheels from kingbri1/flash-attention. Data last verified: April 3, 2026.
+  Check https://github.com/kingbri1/flash-attention/releases for latest.
+- Linux: official wheels from Dao-AILab/flash-attention (built with CUDA 12.9.1, no CUDA 13.x wheels).
 
 MARKERS:
 - * = Assumed compatible (not officially tested)     ~ = CUDA patch version differs (same major.minor)
@@ -138,6 +140,40 @@ MARKERS:
             {"fa2": "2.8.2", "python": "3.11", "torch": "2.8.0", "cuda": "12.8.1", "assumed": False},
             {"fa2": "2.8.2", "python": "3.12", "torch": "2.8.0", "cuda": "12.8.1", "assumed": False},
             {"fa2": "2.8.2", "python": "3.13", "torch": "2.8.0", "cuda": "12.8.1", "assumed": False},
+        ]
+
+        # Linux Flash Attention 2 compatibility data (official Dao-AILab/flash-attention)
+        # Ground truth: .github/workflows/publish.yml from tagged releases.
+        #   v2.8.3: https://raw.githubusercontent.com/Dao-AILab/flash-attention/v2.8.3/.github/workflows/publish.yml
+        #   v2.8.2: https://raw.githubusercontent.com/Dao-AILab/flash-attention/v2.8.2/.github/workflows/publish.yml
+        # Linux wheels are built with CUDA 12.9.1 and compatible with all CUDA 12.x at runtime.
+        # No CUDA 13.x wheels exist — Linux FA2 only matches torch wheels with CUDA 12.x.
+        # Only torch versions also present in self.torch_cuda are tracked here.
+        # torch 2.9.0 + cp312 wheels were added to the v2.8.3 release manually after CI.
+        self.flash_attention_linux = [
+            # v2.8.3
+            {"fa2": "2.8.3", "python": "3.10", "torch": "2.6.0"},
+            {"fa2": "2.8.3", "python": "3.11", "torch": "2.6.0"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.6.0"},
+            {"fa2": "2.8.3", "python": "3.13", "torch": "2.6.0"},
+            {"fa2": "2.8.3", "python": "3.10", "torch": "2.7.1"},
+            {"fa2": "2.8.3", "python": "3.11", "torch": "2.7.1"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.7.1"},
+            {"fa2": "2.8.3", "python": "3.13", "torch": "2.7.1"},
+            {"fa2": "2.8.3", "python": "3.10", "torch": "2.8.0"},
+            {"fa2": "2.8.3", "python": "3.11", "torch": "2.8.0"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.8.0"},
+            {"fa2": "2.8.3", "python": "3.13", "torch": "2.8.0"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.9.0"},  # Added manually after CI run
+            # v2.8.2
+            {"fa2": "2.8.2", "python": "3.10", "torch": "2.6.0"},
+            {"fa2": "2.8.2", "python": "3.11", "torch": "2.6.0"},
+            {"fa2": "2.8.2", "python": "3.12", "torch": "2.6.0"},
+            {"fa2": "2.8.2", "python": "3.13", "torch": "2.6.0"},
+            {"fa2": "2.8.2", "python": "3.10", "torch": "2.7.1"},
+            {"fa2": "2.8.2", "python": "3.11", "torch": "2.7.1"},
+            {"fa2": "2.8.2", "python": "3.12", "torch": "2.7.1"},
+            {"fa2": "2.8.2", "python": "3.13", "torch": "2.7.1"},
         ]
 
         # FA2 Windows wheel availability: (fa2_version, cu_moniker, torch_build_version) -> [python_versions]
@@ -352,9 +388,11 @@ class CompatibilityChecker(QMainWindow):
         self.cuda_combo.setMinimumWidth(130)
         self.cuda_combo.currentTextChanged.connect(self.update_compatibility)
 
-        self.windows_only_check = QCheckBox("Windows Only (hide combos lacking cuDNN on Windows)")
-        self.windows_only_check.setChecked(True)
-        self.windows_only_check.stateChanged.connect(self.update_compatibility)
+        self.platform_combo = QComboBox()
+        self.platform_combo.addItems(["Windows", "Linux"])
+        self.platform_combo.setCurrentText("Windows")
+        self.platform_combo.setMinimumWidth(130)
+        self.platform_combo.currentTextChanged.connect(self.update_compatibility)
 
         grid.addWidget(QLabel("PyTorch:"), 0, 0, Qt.AlignRight)
         grid.addWidget(self.torch_combo, 0, 1)
@@ -362,12 +400,16 @@ class CompatibilityChecker(QMainWindow):
         grid.addWidget(self.python_combo, 0, 3)
         grid.addWidget(QLabel("CUDA:"), 0, 4, Qt.AlignRight)
         grid.addWidget(self.cuda_combo, 0, 5)
-        grid.addWidget(self.windows_only_check, 0, 6, 1, 2)
+        grid.addWidget(QLabel("Platform:"), 0, 6, Qt.AlignRight)
+        grid.addWidget(self.platform_combo, 0, 7)
 
         # Row 1: Flash Attn 2, Xformers, Triton, bitsandbytes
         self.fa2_combo = QComboBox()
         self.fa2_combo.addItem("Any")
-        self.fa2_combo.addItems(sorted(set(x["fa2"] for x in self.data.flash_attention), reverse=True))
+        # Populate FA2 combo with the union of Windows + Linux FA2 versions.
+        all_fa2 = set(x["fa2"] for x in self.data.flash_attention)
+        all_fa2.update(x["fa2"] for x in self.data.flash_attention_linux)
+        self.fa2_combo.addItems(sorted(all_fa2, reverse=True))
         self.fa2_combo.setMinimumWidth(130)
         self.fa2_combo.currentTextChanged.connect(self.update_compatibility)
 
@@ -483,8 +525,15 @@ class CompatibilityChecker(QMainWindow):
                 if idx >= 0:
                     combo.setCurrentIndex(idx)
 
-        if self.settings.contains("filters/windows_only"):
-            self.windows_only_check.setChecked(self.settings.value("filters/windows_only", "true") == "true")
+        if self.settings.contains("filters/platform"):
+            saved_platform = self.settings.value("filters/platform", "Windows")
+            idx = self.platform_combo.findText(saved_platform)
+            if idx >= 0:
+                self.platform_combo.setCurrentIndex(idx)
+        # Back-compat: migrate legacy windows_only flag if present
+        elif self.settings.contains("filters/windows_only"):
+            legacy = self.settings.value("filters/windows_only", "true") == "true"
+            self.platform_combo.setCurrentText("Windows" if legacy else "Linux")
 
     def save_settings(self):
         self.settings.setValue("window/geometry", self.saveGeometry())
@@ -497,7 +546,7 @@ class CompatibilityChecker(QMainWindow):
         self.settings.setValue("filters/xformers", self.xformers_combo.currentText())
         self.settings.setValue("filters/triton", self.triton_combo.currentText())
         self.settings.setValue("filters/bnb", self.bnb_combo.currentText())
-        self.settings.setValue("filters/windows_only", "true" if self.windows_only_check.isChecked() else "false")
+        self.settings.setValue("filters/platform", self.platform_combo.currentText())
 
     def closeEvent(self, event):
         self.save_settings()
@@ -512,6 +561,7 @@ class CompatibilityChecker(QMainWindow):
         self.xformers_combo.setCurrentIndex(0)
         self.triton_combo.setCurrentIndex(0)
         self.bnb_combo.setCurrentIndex(0)
+        self.platform_combo.setCurrentText("Windows")
         self._block_updates = False
         self.update_compatibility()
 
@@ -562,7 +612,7 @@ class CompatibilityChecker(QMainWindow):
             ("Xformers", self.xformers_combo.currentText()),
             ("Triton", self.triton_combo.currentText()),
             ("bitsandbytes", self.bnb_combo.currentText()),
-            ("Windows Only", "Yes" if self.windows_only_check.isChecked() else "No"),
+            ("Platform", self.platform_combo.currentText()),
         ]
         lines.append("Active Filters:")
         for name, val in filters:
@@ -682,8 +732,13 @@ class CompatibilityChecker(QMainWindow):
             fa2_ver = fa2_cell.split(",")[0].strip().rstrip("*")
             lines.append("")
             if platform == "linux":
-                lines.append(f"# Flash Attention 2")
-                lines.append(f"pip install flash-attn=={fa2_ver}")
+                url = self._get_fa2_linux_url(fa2_ver, torch_ver, python_ver)
+                if url:
+                    lines.append(f"# Flash Attention 2 (Linux wheel from Dao-AILab/flash-attention)")
+                    lines.append(f"pip install {url}")
+                else:
+                    lines.append(f"# Flash Attention 2 (no pre-built Linux wheel for this combo; falls back to PyPI source build)")
+                    lines.append(f"pip install flash-attn=={fa2_ver}")
             else:
                 url = self._get_fa2_windows_url(fa2_ver, moniker, torch_ver, python_ver)
                 if url:
@@ -731,6 +786,25 @@ class CompatibilityChecker(QMainWindow):
                     f"cxx11abiFALSE-cp{py_nodot}-cp{py_nodot}-win_amd64.whl")
         return None
 
+    def _get_fa2_linux_url(self, fa2_ver, torch_ver, python_ver):
+        """Build the Dao-AILab Linux FA2 wheel URL from the release tag.
+
+        Wheel filename pattern (from https://github.com/Dao-AILab/flash-attention/releases):
+          flash_attn-{FA2}+cu12torch{TORCH_MM}cxx11abiFALSE-cp{PY}-cp{PY}-linux_x86_64.whl
+        TORCH_MM is the torch major.minor (e.g. "2.8" for torch 2.8.0).
+        We only build the URL if (fa2_ver, torch_ver, python_ver) appears in
+        self.flash_attention_linux — otherwise the wheel may not exist.
+        """
+        match = any(x["fa2"] == fa2_ver and x["torch"] == torch_ver and x["python"] == python_ver
+                    for x in self.data.flash_attention_linux)
+        if not match:
+            return None
+        py_nodot = python_ver.replace(".", "")
+        torch_mm = ".".join(torch_ver.split(".")[:2])
+        return (f"https://github.com/Dao-AILab/flash-attention/releases/download/"
+                f"v{fa2_ver}/flash_attn-{fa2_ver}%2Bcu12torch{torch_mm}"
+                f"cxx11abiFALSE-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
+
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
         cuda_short = '.'.join(cuda_version.split('.')[:2])  # e.g. "13.0"
         bnb_versions = []
@@ -763,7 +837,7 @@ class CompatibilityChecker(QMainWindow):
         xformers_sel = self.xformers_combo.currentText() if self.xformers_combo.currentText() != "Any" else None
         triton_sel = self.triton_combo.currentText() if self.triton_combo.currentText() != "Any" else None
         bnb_sel = self.bnb_combo.currentText() if self.bnb_combo.currentText() != "Any" else None
-        windows_only = self.windows_only_check.isChecked()
+        platform = self.platform_combo.currentText().lower()  # "windows" or "linux"
 
         compatible = []
 
@@ -775,7 +849,9 @@ class CompatibilityChecker(QMainWindow):
                 tc_mm = '.'.join(tc["cuda"].split('.')[:2])
                 if sel_mm != tc_mm:
                     continue
-            if windows_only and not tc.get("windows", True):
+            # Windows mode: hide torch wheels that lack Windows cuDNN (cu13x).
+            # Linux mode: all torch wheels are usable.
+            if platform == "windows" and not tc.get("windows", True):
                 continue
 
             matching_pt = [x for x in self.data.torch_python_triton if x["torch"] == tc["torch"]]
@@ -794,9 +870,22 @@ class CompatibilityChecker(QMainWindow):
                     if python_sel and py_ver != python_sel:
                         continue
 
-                    fa2_compat = [x for x in self.data.flash_attention 
-                                  if x["torch"] == tc["torch"] and x["python"] == py_ver 
-                                  and x["cuda"] == tc["cuda"]]
+                    # FA2 matching depends on platform:
+                    # - Windows: exact torch + python + CUDA match against kingbri1 wheels.
+                    # - Linux: torch + python match against Dao-AILab wheels, restricted to
+                    #   CUDA 12.x (Linux FA2 wheels are built with CUDA 12.9.1 and have no
+                    #   CUDA 13.x wheels).
+                    if platform == "windows":
+                        fa2_compat = [x for x in self.data.flash_attention
+                                      if x["torch"] == tc["torch"] and x["python"] == py_ver
+                                      and x["cuda"] == tc["cuda"]]
+                    else:
+                        cuda_major = tc["cuda"].split(".")[0]
+                        if cuda_major == "12":
+                            fa2_compat = [x for x in self.data.flash_attention_linux
+                                          if x["torch"] == tc["torch"] and x["python"] == py_ver]
+                        else:
+                            fa2_compat = []
 
                     fa2_versions = []
                     fa2_has_assumed = False
@@ -815,6 +904,8 @@ class CompatibilityChecker(QMainWindow):
                         matching_fa2 = [x for x in fa2_compat if x["fa2"] == fa2_sel]
                         if not matching_fa2:
                             continue
+                        # In Linux mode, fa2_compat may be empty when CUDA is 13.x;
+                        # filtering by a specific FA2 version should drop those rows.
 
                     # Exact CUDA match for xformers
                     # torch_min entries (>=0.0.34) match any torch >= their stated version
@@ -859,7 +950,16 @@ class CompatibilityChecker(QMainWindow):
                     torchvision_ver = ecosystem.get("torchvision", "-")
                     torchaudio_ver = ecosystem.get("torchaudio", "-")
 
-                    windows_support = "Yes" if tc.get("windows", True) else "No (cuDNN)"
+                    # "Wheel on this platform" status. In Windows mode we've already
+                    # filtered out tc.windows == False, so this is always "Yes" in
+                    # Windows mode. In Linux mode, all tc entries are usable.
+                    if platform == "windows":
+                        windows_support = "Yes"
+                    else:
+                        # On Linux every torch wheel is usable. Mark cu13x wheels as
+                        # "Linux-only" so the user sees why they appear here but not
+                        # in Windows mode.
+                        windows_support = "Linux-only" if not tc.get("windows", True) else "Yes"
 
                     triton_pin = pt["triton"]
                     triton_compat_list = pt["triton_compat"]
@@ -895,10 +995,11 @@ class CompatibilityChecker(QMainWindow):
         if compatible:
             self.compat_table.setRowCount(len(compatible))
             self.compat_table.setColumnCount(12)
+            last_col_header = "Win cuDNN" if platform == "windows" else "Platform"
             self.compat_table.setHorizontalHeaderLabels(
                 ["PyTorch", "Torchvision", "Torchaudio", "Python",
                  "CUDA (compatible)", "CUDA (torch-tested)", "cuDNN (torch-tested)",
-                 "Triton", "Flash Attn 2", "Xformers", "bitsandbytes", "Win cuDNN"])
+                 "Triton", "Flash Attn 2", "Xformers", "bitsandbytes", last_col_header])
 
             # Add header tooltips
             compat_cuda_hdr = self.compat_table.horizontalHeaderItem(4)
@@ -968,10 +1069,10 @@ class CompatibilityChecker(QMainWindow):
                 self.compat_table.setItem(i, 10, bnb_item)
 
                 windows_item = make_item(combo["windows"])
-                if combo["windows"] == "No (cuDNN)":
+                if combo["windows"] == "Linux-only":
                     windows_item.setBackground(QColor(255, 200, 100))
                     windows_item.setForeground(QColor(0, 0, 0))
-                    windows_item.setToolTip("Wheel exists but cuDNN 9.x for CUDA 13.x is Linux-only")
+                    windows_item.setToolTip("This torch wheel exists but cuDNN 9.x for CUDA 13.x is Linux-only")
                 self.compat_table.setItem(i, 11, windows_item)
 
             self.compat_table.resizeColumnsToContents()

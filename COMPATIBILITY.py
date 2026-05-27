@@ -1,5 +1,119 @@
 r"""
 ****************************
+GROUND TRUTH SOURCES
+****************************
+# This section lists, per library, the EXACT files and URL patterns used to extract
+# compatibility data. When a new release comes out, fetch these files at the new tag
+# and update accordingly. ALWAYS fetch raw files with curl/wget (no AI summarization)
+# so the data goes straight from the source into the program.
+#
+# ---- PyTorch ----
+#   Latest version (PyPI):
+#     curl -s https://pypi.org/pypi/torch/json | jq -r .info.version
+#   Per-release build matrix (CUDA archs, cuDNN pins, Python versions):
+#     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/.github/scripts/generate_binary_build_matrix.py
+#     Look for: CUDA_ARCHES, CUDA_STABLE, CUDA_ARCHES_FULL_VERSION,
+#               PYTORCH_EXTRA_INSTALL_REQUIREMENTS (cuDNN pins inside),
+#               FULL_PYTHON_VERSIONS
+#   Triton pin for that torch release:
+#     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/.ci/docker/triton_version.txt
+#   Sympy pin:
+#     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/.ci/docker/requirements-ci.txt
+#
+# ---- Torchvision / Torchaudio ----
+#   PyPI JSON:
+#     https://pypi.org/pypi/torchvision/json
+#     https://pypi.org/pypi/torchaudio/json
+#   NOTE: torchaudio entered maintenance mode after 2.11.0. There may be no
+#         matching torchaudio release for newer torch versions.
+#
+# ---- CUDA metapackages ----
+#   Per-version redistribution JSON:
+#     https://developer.download.nvidia.com/compute/cuda/redist/redistrib_{X.Y.Z}.json
+#   Index page (to discover new versions):
+#     https://developer.download.nvidia.com/compute/cuda/redist/
+#   Components to extract (each has a .version field):
+#     cuda_nvrtc, cuda_cudart, cuda_nvcc, cuda_cupti, libcublas, libcufft,
+#     libcurand, libcusolver, libcusparse, cuda_nvtx, libnvjitlink
+#   Check for new releases by trying candidate URLs (404 = not yet released).
+#
+# ---- cuDNN ----
+#   Support matrix (Linux/Windows, CUDA compat, driver minimums):
+#     https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/support-matrix.html
+#   Latest cuDNN release (PyPI metapackage):
+#     https://pypi.org/pypi/nvidia-cudnn-cu12/json
+#     https://pypi.org/pypi/nvidia-cudnn-cu13/json
+#
+# ---- Triton (Linux, upstream) ----
+#   Repo: https://github.com/triton-lang/triton
+#   PyPI versions:
+#     https://pypi.org/pypi/triton/json
+#   Per-torch pin: same file as PyTorch's triton_version.txt (above).
+#   Linux Triton is just `pip install triton==X.Y.Z` — no `-windows.postN` suffix.
+#
+# ---- Triton (Windows, fork) ----
+#   Repo: https://github.com/triton-lang/triton-windows (v3.6.0-windows.post26+)
+#         https://github.com/woct0rdho/triton-windows (up to v3.6.0-windows.post25)
+#   Compatibility table (torch ↔ triton, bundled CUDA tools):
+#     https://raw.githubusercontent.com/triton-lang/triton-windows/readme/README.md
+#   PyPI versions:
+#     https://pypi.org/pypi/triton-windows/json
+#   Bundled CUDA tool versions in each wheel:
+#     cmake/nvidia-toolchain-version.json on the release/{X.Y}.x-windows branch
+#
+# ---- Flash Attention 2 (Linux) ----
+#   Repo: https://github.com/Dao-AILab/flash-attention
+#   CI build matrix (torch versions, python versions, CUDA version):
+#     https://raw.githubusercontent.com/Dao-AILab/flash-attention/v{VER}/.github/workflows/publish.yml
+#     Look in `build_wheels.strategy.matrix`: python-version, torch-version, cuda-version
+#   Release assets (sometimes wheels are added after the CI run):
+#     https://github.com/Dao-AILab/flash-attention/releases/tag/v{VER}
+#   PyPI:
+#     https://pypi.org/pypi/flash-attn/json
+#   NOTE: FA2 has no hard torch pin (setup.py: install_requires=["torch"]).
+#         The CI matrix defines what was built/tested.
+#
+# ---- Flash Attention 2 (Windows) ----
+#   Repo: https://github.com/kingbri1/flash-attention
+#   Build workflow (workflow_dispatch — manually triggered):
+#     https://raw.githubusercontent.com/kingbri1/flash-attention/main/.github/workflows/build-wheels.yml
+#   Actual wheel availability comes from release assets, not the matrix:
+#     https://github.com/kingbri1/flash-attention/releases
+#
+# ---- Xformers ----
+#   Repo: https://github.com/facebookresearch/xformers
+#   Per-release torch version + CUDA build matrix:
+#     https://raw.githubusercontent.com/facebookresearch/xformers/v{VER}/.github/workflows/wheels.yml
+#     Look for: torch_version, CU_VERSIONS, os (ubuntu vs windows)
+#   FA2 version range supported:
+#     https://raw.githubusercontent.com/facebookresearch/xformers/v{VER}/xformers/ops/fmha/flash.py
+#     Look for: FLASH_VER_MIN, FLASH_VER_LAST
+#   Build toolkit CUDA versions (may differ from torch CUDA monikers):
+#     https://raw.githubusercontent.com/facebookresearch/xformers/v{VER}/.github/actions/setup-build-cuda/action.yml
+#   PyPI metadata (for torch pin in published wheel — may differ from pyproject.toml):
+#     https://pypi.org/pypi/xformers/json
+#
+# ---- Bitsandbytes ----
+#   Repo: https://github.com/bitsandbytes-foundation/bitsandbytes
+#   CI build matrix (CUDA versions, Linux + Windows + ARM):
+#     https://raw.githubusercontent.com/bitsandbytes-foundation/bitsandbytes/{VER}/.github/workflows/python-package.yml
+#     Look in `build-cuda` job for: cuda_version matrix
+#   Python support (wheels are py3 / version-agnostic):
+#     https://raw.githubusercontent.com/bitsandbytes-foundation/bitsandbytes/{VER}/pyproject.toml
+#     Look for: requires-python, classifiers (Programming Language :: Python :: ...)
+#   PyPI:
+#     https://pypi.org/pypi/bitsandbytes/json
+#
+# ---- General update procedure ----
+#   1. For each library, hit the "latest version" endpoint (PyPI JSON or releases page).
+#   2. If a newer version exists than what we have, fetch its tagged ground truth file.
+#   3. Parse the values (curl + python/jq, NOT WebFetch).
+#   4. Update test_compatibility.py (data structures) and this file.
+#   5. Verify by re-fetching the same file and re-parsing.
+
+
+
+****************************
 Torch and CUDA Compatibility
 ****************************
 
