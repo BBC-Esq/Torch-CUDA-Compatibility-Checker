@@ -35,6 +35,9 @@ MARKERS:
 """
 
         self.torch_cuda = [
+            {"torch": "2.12.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False},
+            {"torch": "2.12.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": False},
+            {"torch": "2.12.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.11.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.19.0.56", "windows": False},
             {"torch": "2.11.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.17.1.4", "windows": True},
             {"torch": "2.11.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.19.0.56", "windows": True},
@@ -67,6 +70,8 @@ MARKERS:
         # cuda_versions uses major.minor (e.g. "12.4") to match against
         # the full versions in torch_cuda (e.g. "12.4.1") via major.minor extraction
         self.torch_python_triton = [
+            {"torch": "2.12.0", "cuda_versions": ["12.6", "13.0", "13.2"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.7.0", "triton_compat": ["3.7.0"], "sympy": ">=1.13.3"},
             {"torch": "2.11.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.6.0", "triton_compat": ["3.6.0"], "sympy": ">=1.13.3"},
             {"torch": "2.10.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"],
@@ -85,7 +90,9 @@ MARKERS:
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.2.0", "triton_compat": ["3.2.0"], "sympy": "1.13.1"},
         ]
 
+        # NOTE: torchaudio entered maintenance mode after 2.11.0; no 2.12.0 release.
         self.torch_ecosystem = {
+            "2.12.0": {"torchvision": "0.27.0", "torchaudio": "N/A"},
             "2.11.0": {"torchvision": "0.26.0", "torchaudio": "2.11.0"},
             "2.10.0": {"torchvision": "0.25.0", "torchaudio": "2.10.0"},
             "2.9.1": {"torchvision": "0.24.1", "torchaudio": "2.9.1"},
@@ -264,6 +271,12 @@ MARKERS:
                 "cuda-cupti": "13.2.75", "cublas": "13.4.0.1", "cufft": "12.2.0.46",
                 "curand": "10.4.2.55", "cusolver": "12.2.0.1", "cusparse": "12.7.10.1",
                 "nvtx": "13.2.75", "nvjitlink": "13.2.78"
+            },
+            "13.3.0": {
+                "cuda-nvrtc": "13.3.33", "cuda-runtime": "13.3.29", "cuda-nvcc": "13.3.33",
+                "cuda-cupti": "13.3.35", "cublas": "13.5.1.27", "cufft": "12.3.0.29",
+                "curand": "10.4.3.29", "cusolver": "12.2.2.18", "cusparse": "12.8.1.7",
+                "nvtx": "13.3.29", "nvjitlink": "13.3.33"
             }
         }
 
