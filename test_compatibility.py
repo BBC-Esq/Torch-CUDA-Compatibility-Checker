@@ -89,7 +89,7 @@ MARKERS:
             {"torch": "2.7.0", "cuda_versions": ["12.6", "12.8"], 
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.3.0", "triton_compat": ["3.3.0", "3.3.1"], "sympy": ">=1.13.3"},
             {"torch": "2.6.0", "cuda_versions": ["12.4", "12.6"], 
-             "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.2.0", "triton_compat": ["3.2.0"], "sympy": "1.13.1"},
+             "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.2.0", "triton_compat": ["3.2.0"], "sympy": "==1.13.1"},
         ]
 
         # NOTE: torchaudio entered maintenance mode after 2.11.0; no 2.12.0 release.
