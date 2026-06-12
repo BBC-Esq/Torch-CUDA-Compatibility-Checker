@@ -639,9 +639,9 @@ class CompatibilityChecker(QMainWindow):
         meta_headers, meta_rows = self._read_table(self.metapackage_table)
         has_meta = meta_rows and not (len(meta_rows) == 1 and len(meta_headers) == 1 and meta_headers[0] == "Message")
         if has_meta and has_compat:
-            cuda_col = next((i for i, h in enumerate(compat_headers) if h.startswith("CUDA")), -1)
+            cuda_col = next((i for i, h in enumerate(compat_headers) if h == "CUDA (torch-tested)"), -1)
             if cuda_col >= 0:
-                compatible_cudas = set(row[cuda_col].rstrip("†") for row in compat_rows)
+                compatible_cudas = set(row[cuda_col] for row in compat_rows)
                 keep_cols = [0]
                 for i in range(1, len(meta_headers)):
                     if meta_headers[i] in compatible_cudas:
