@@ -711,7 +711,14 @@ class CompatibilityChecker(QMainWindow):
 
         lines = []
         lines.append(f"# PyTorch {torch_ver} + CUDA {cuda_ver} ({moniker})")
-        lines.append(f"pip install torch=={torch_ver} torchvision=={torchvision_ver} torchaudio=={torchaudio_ver} --index-url https://download.pytorch.org/whl/{moniker}")
+        # Omit components with no matching release (e.g. torchaudio is "N/A" for
+        # torch 2.12.0 since torchaudio entered maintenance mode after 2.11.0).
+        pkgs = [f"torch=={torch_ver}"]
+        if torchvision_ver not in ("N/A", "-", ""):
+            pkgs.append(f"torchvision=={torchvision_ver}")
+        if torchaudio_ver not in ("N/A", "-", ""):
+            pkgs.append(f"torchaudio=={torchaudio_ver}")
+        lines.append(f"pip install {' '.join(pkgs)} --index-url https://download.pytorch.org/whl/{moniker}")
 
         if triton_pin:
             lines.append("")
