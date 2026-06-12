@@ -152,24 +152,29 @@ MARKERS:
         # torch 2.9.0 + cp312 wheels were added to the v2.8.3 release manually after CI.
         self.flash_attention_linux = [
             # v2.8.3
+            {"fa2": "2.8.3", "python": "3.9", "torch": "2.6.0"},
             {"fa2": "2.8.3", "python": "3.10", "torch": "2.6.0"},
             {"fa2": "2.8.3", "python": "3.11", "torch": "2.6.0"},
             {"fa2": "2.8.3", "python": "3.12", "torch": "2.6.0"},
             {"fa2": "2.8.3", "python": "3.13", "torch": "2.6.0"},
+            {"fa2": "2.8.3", "python": "3.9", "torch": "2.7.1"},
             {"fa2": "2.8.3", "python": "3.10", "torch": "2.7.1"},
             {"fa2": "2.8.3", "python": "3.11", "torch": "2.7.1"},
             {"fa2": "2.8.3", "python": "3.12", "torch": "2.7.1"},
             {"fa2": "2.8.3", "python": "3.13", "torch": "2.7.1"},
+            {"fa2": "2.8.3", "python": "3.9", "torch": "2.8.0"},
             {"fa2": "2.8.3", "python": "3.10", "torch": "2.8.0"},
             {"fa2": "2.8.3", "python": "3.11", "torch": "2.8.0"},
             {"fa2": "2.8.3", "python": "3.12", "torch": "2.8.0"},
             {"fa2": "2.8.3", "python": "3.13", "torch": "2.8.0"},
             {"fa2": "2.8.3", "python": "3.12", "torch": "2.9.0"},  # Added manually after CI run
             # v2.8.2
+            {"fa2": "2.8.2", "python": "3.9", "torch": "2.6.0"},
             {"fa2": "2.8.2", "python": "3.10", "torch": "2.6.0"},
             {"fa2": "2.8.2", "python": "3.11", "torch": "2.6.0"},
             {"fa2": "2.8.2", "python": "3.12", "torch": "2.6.0"},
             {"fa2": "2.8.2", "python": "3.13", "torch": "2.6.0"},
+            {"fa2": "2.8.2", "python": "3.9", "torch": "2.7.1"},
             {"fa2": "2.8.2", "python": "3.10", "torch": "2.7.1"},
             {"fa2": "2.8.2", "python": "3.11", "torch": "2.7.1"},
             {"fa2": "2.8.2", "python": "3.12", "torch": "2.7.1"},
