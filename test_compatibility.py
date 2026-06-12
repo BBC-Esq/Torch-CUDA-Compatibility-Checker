@@ -792,8 +792,11 @@ class CompatibilityChecker(QMainWindow):
         """Build the Dao-AILab Linux FA2 wheel URL from the release tag.
 
         Wheel filename pattern (from https://github.com/Dao-AILab/flash-attention/releases):
-          flash_attn-{FA2}+cu12torch{TORCH_MM}cxx11abiFALSE-cp{PY}-cp{PY}-linux_x86_64.whl
+          flash_attn-{FA2}+cu12torch{TORCH_MM}cxx11abi{ABI}-cp{PY}-cp{PY}-linux_x86_64.whl
         TORCH_MM is the torch major.minor (e.g. "2.8" for torch 2.8.0).
+        ABI is TRUE for torch >= 2.7 (manylinux_2_28 wheels use the new C++11 ABI)
+        and FALSE for torch 2.6.x (manylinux1, old ABI). Picking the wrong ABI either
+        404s or imports against a mismatched torch and dies with undefined symbols.
         We only build the URL if (fa2_ver, torch_ver, python_ver) appears in
         self.flash_attention_linux — otherwise the wheel may not exist.
         """
@@ -803,9 +806,11 @@ class CompatibilityChecker(QMainWindow):
             return None
         py_nodot = python_ver.replace(".", "")
         torch_mm = ".".join(torch_ver.split(".")[:2])
+        torch_parts = tuple(int(p) for p in torch_ver.split(".")[:2])
+        abi = "TRUE" if torch_parts >= (2, 7) else "FALSE"
         return (f"https://github.com/Dao-AILab/flash-attention/releases/download/"
                 f"v{fa2_ver}/flash_attn-{fa2_ver}%2Bcu12torch{torch_mm}"
-                f"cxx11abiFALSE-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
+                f"cxx11abi{abi}-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
 
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
         cuda_short = '.'.join(cuda_version.split('.')[:2])  # e.g. "13.0"
