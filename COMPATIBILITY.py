@@ -361,7 +361,8 @@ Linux Flash Attention 2
 #
 # FA2 has no hard torch version pin (setup.py says install_requires=["torch"]).
 # The CI build matrix defines which torch versions are officially tested/built.
-# All builds use CUDA 12.9.1 (compiled once, compatible with all CUDA 12.x at runtime).
+# cu12 builds use CUDA 12.9.1 (compiled once, compatible with all CUDA 12.x at runtime).
+# v2.8.3 also ships cu13 wheels (torch 2.9/2.10, cp312) for use with CUDA 13.x torch.
 
 # FA2 wheels are built for specific torch versions
 +--------------+------------------------------------------------------+
@@ -373,14 +374,17 @@ Linux Flash Attention 2
 | v2.8.3       | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.3       | torch 2.8.0 + cuda 12.x + cp39-cp313                 |
 | v2.8.3       | torch 2.9.0 + cuda 12.x + cp312 (x86_64, aarch64) ** |
+| v2.8.3       | torch 2.9.0 + cuda 13.x + cp312 (x86_64) **          |
+| v2.8.3       | torch 2.10.0 + cuda 13.x + cp312 (x86_64,aarch64) ** |
 +--------------+------------------------------------------------------+
 | v2.8.2       | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
 | v2.8.2       | torch 2.5.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.2       | torch 2.6.0 + cuda 12.x + cp39-cp313                 |
 | v2.8.2       | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 +--------------+------------------------------------------------------+
-** torch 2.9.0 is NOT in the v2.8.3 publish.yml CI matrix (which only has up to 2.8.0).
-   These wheels were likely added to the GitHub release later (manually or via re-run).
+** torch 2.9.0/2.10.0 are NOT in the v2.8.3 publish.yml CI matrix (which only has up to
+   2.8.0). These wheels were added to the GitHub release later (manually or via re-run).
+   The cu13 wheels (cp312) are for use with CUDA 13.x torch builds.
 
 
 *************************

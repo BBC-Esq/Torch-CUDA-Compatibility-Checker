@@ -30,7 +30,7 @@ TRITON:
 FLASH ATTENTION 2:
 - Windows: wheels from kingbri1/flash-attention. Data last verified: April 3, 2026.
   Check https://github.com/kingbri1/flash-attention/releases for latest.
-- Linux: official wheels from Dao-AILab/flash-attention (built with CUDA 12.9.1, no CUDA 13.x wheels).
+- Linux: official wheels from Dao-AILab/flash-attention (cu12 wheels, plus select cu13 cp312 wheels).
 
 MARKERS:
 - * = Assumed compatible (not officially tested)     ~ = CUDA patch version differs (same major.minor)
@@ -146,39 +146,42 @@ MARKERS:
         # Ground truth: .github/workflows/publish.yml from tagged releases.
         #   v2.8.3: https://raw.githubusercontent.com/Dao-AILab/flash-attention/v2.8.3/.github/workflows/publish.yml
         #   v2.8.2: https://raw.githubusercontent.com/Dao-AILab/flash-attention/v2.8.2/.github/workflows/publish.yml
-        # Linux wheels are built with CUDA 12.9.1 and compatible with all CUDA 12.x at runtime.
-        # No CUDA 13.x wheels exist — Linux FA2 only matches torch wheels with CUDA 12.x.
-        # Only torch versions also present in self.torch_cuda are tracked here.
-        # torch 2.9.0 + cp312 wheels were added to the v2.8.3 release manually after CI.
+        # cu12 wheels are built with CUDA 12.9.1 and compatible with all CUDA 12.x at runtime.
+        # v2.8.3 also ships cu13 wheels for torch 2.9/2.10 (cp312 only); the "cuda" field
+        # ("12"/"13") is matched against the torch wheel's CUDA major. torch 2.9.0 cp312 has
+        # both a cu12 and a cu13 wheel. Only torch versions also present in self.torch_cuda
+        # are tracked here.
         self.flash_attention_linux = [
             # v2.8.3
-            {"fa2": "2.8.3", "python": "3.9", "torch": "2.6.0"},
-            {"fa2": "2.8.3", "python": "3.10", "torch": "2.6.0"},
-            {"fa2": "2.8.3", "python": "3.11", "torch": "2.6.0"},
-            {"fa2": "2.8.3", "python": "3.12", "torch": "2.6.0"},
-            {"fa2": "2.8.3", "python": "3.13", "torch": "2.6.0"},
-            {"fa2": "2.8.3", "python": "3.9", "torch": "2.7.1"},
-            {"fa2": "2.8.3", "python": "3.10", "torch": "2.7.1"},
-            {"fa2": "2.8.3", "python": "3.11", "torch": "2.7.1"},
-            {"fa2": "2.8.3", "python": "3.12", "torch": "2.7.1"},
-            {"fa2": "2.8.3", "python": "3.13", "torch": "2.7.1"},
-            {"fa2": "2.8.3", "python": "3.9", "torch": "2.8.0"},
-            {"fa2": "2.8.3", "python": "3.10", "torch": "2.8.0"},
-            {"fa2": "2.8.3", "python": "3.11", "torch": "2.8.0"},
-            {"fa2": "2.8.3", "python": "3.12", "torch": "2.8.0"},
-            {"fa2": "2.8.3", "python": "3.13", "torch": "2.8.0"},
-            {"fa2": "2.8.3", "python": "3.12", "torch": "2.9.0"},  # Added manually after CI run
+            {"fa2": "2.8.3", "python": "3.9", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.10", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.11", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.13", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.9", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.10", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.11", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.13", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.9", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.10", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.11", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.13", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.9.0", "cuda": "12"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.9.0", "cuda": "13"},
+            {"fa2": "2.8.3", "python": "3.12", "torch": "2.10.0", "cuda": "13"},
             # v2.8.2
-            {"fa2": "2.8.2", "python": "3.9", "torch": "2.6.0"},
-            {"fa2": "2.8.2", "python": "3.10", "torch": "2.6.0"},
-            {"fa2": "2.8.2", "python": "3.11", "torch": "2.6.0"},
-            {"fa2": "2.8.2", "python": "3.12", "torch": "2.6.0"},
-            {"fa2": "2.8.2", "python": "3.13", "torch": "2.6.0"},
-            {"fa2": "2.8.2", "python": "3.9", "torch": "2.7.1"},
-            {"fa2": "2.8.2", "python": "3.10", "torch": "2.7.1"},
-            {"fa2": "2.8.2", "python": "3.11", "torch": "2.7.1"},
-            {"fa2": "2.8.2", "python": "3.12", "torch": "2.7.1"},
-            {"fa2": "2.8.2", "python": "3.13", "torch": "2.7.1"},
+            {"fa2": "2.8.2", "python": "3.9", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.10", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.11", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.12", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.13", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.9", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.10", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.11", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.12", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.2", "python": "3.13", "torch": "2.7.1", "cuda": "12"},
         ]
 
         # FA2 Windows wheel availability: (fa2_version, cu_moniker, torch_build_version) -> [python_versions]
@@ -338,6 +341,10 @@ class CompatibilityChecker(QMainWindow):
         self._block_updates = False
         self.update_compatibility()
 
+    @staticmethod
+    def _version_sorted(values, reverse=False):
+        return sorted(values, key=lambda v: tuple(int(p) for p in v.split(".")), reverse=reverse)
+
     def init_ui(self):
         self.setWindowTitle("PyTorch CUDA Compatibility Checker")
         self.setGeometry(100, 100, 1500, 800)
@@ -372,7 +379,7 @@ class CompatibilityChecker(QMainWindow):
         # Row 0: PyTorch, Python, CUDA, Windows Only
         self.torch_combo = QComboBox()
         self.torch_combo.addItem("Any")
-        self.torch_combo.addItems(sorted(set(x["torch"] for x in self.data.torch_cuda), reverse=True))
+        self.torch_combo.addItems(self._version_sorted(set(x["torch"] for x in self.data.torch_cuda), reverse=True))
         self.torch_combo.setMinimumWidth(130)
         self.torch_combo.currentTextChanged.connect(self.update_compatibility)
 
@@ -381,7 +388,7 @@ class CompatibilityChecker(QMainWindow):
         all_python = set()
         for item in self.data.torch_python_triton:
             all_python.update(item["python"])
-        self.python_combo.addItems(sorted(all_python, reverse=True))
+        self.python_combo.addItems(self._version_sorted(all_python, reverse=True))
         self.python_combo.setMinimumWidth(130)
         self.python_combo.currentTextChanged.connect(self.update_compatibility)
 
@@ -389,7 +396,7 @@ class CompatibilityChecker(QMainWindow):
         self.cuda_combo.addItem("Any")
         all_cuda = set(x["cuda"] for x in self.data.torch_cuda)
         all_cuda.update(self.data.cuda_metapackages.keys())
-        self.cuda_combo.addItems(sorted(all_cuda, reverse=True))
+        self.cuda_combo.addItems(self._version_sorted(all_cuda, reverse=True))
         self.cuda_combo.setMinimumWidth(130)
         self.cuda_combo.currentTextChanged.connect(self.update_compatibility)
 
@@ -414,7 +421,7 @@ class CompatibilityChecker(QMainWindow):
         # Populate FA2 combo with the union of Windows + Linux FA2 versions.
         all_fa2 = set(x["fa2"] for x in self.data.flash_attention)
         all_fa2.update(x["fa2"] for x in self.data.flash_attention_linux)
-        self.fa2_combo.addItems(sorted(all_fa2, reverse=True))
+        self.fa2_combo.addItems(self._version_sorted(all_fa2, reverse=True))
         self.fa2_combo.setMinimumWidth(130)
         self.fa2_combo.currentTextChanged.connect(self.update_compatibility)
 
@@ -429,7 +436,7 @@ class CompatibilityChecker(QMainWindow):
         all_triton = set()
         for item in self.data.torch_python_triton:
             all_triton.update(item["triton_compat"])
-        self.triton_combo.addItems(sorted(all_triton, reverse=True))
+        self.triton_combo.addItems(self._version_sorted(all_triton, reverse=True))
         self.triton_combo.setMinimumWidth(130)
         self.triton_combo.currentTextChanged.connect(self.update_compatibility)
 
@@ -746,7 +753,7 @@ class CompatibilityChecker(QMainWindow):
             fa2_ver = fa2_cell.split(",")[0].strip().rstrip("*")
             lines.append("")
             if platform == "linux":
-                url = self._get_fa2_linux_url(fa2_ver, torch_ver, python_ver)
+                url = self._get_fa2_linux_url(fa2_ver, torch_ver, python_ver, cuda_ver)
                 if url:
                     lines.append(f"# Flash Attention 2 (Linux wheel from Dao-AILab/flash-attention)")
                     lines.append(f"pip install {url}")
@@ -767,7 +774,7 @@ class CompatibilityChecker(QMainWindow):
             xf_ver = xf_cell.split(",")[0].strip().rstrip("~")
             lines.append("")
             lines.append(f"# Xformers")
-            lines.append(f"pip install xformers=={xf_ver}")
+            lines.append(f"pip install xformers=={xf_ver} --index-url https://download.pytorch.org/whl/{moniker}")
 
         # bitsandbytes
         if bnb_cell and bnb_cell != "-":
@@ -800,19 +807,22 @@ class CompatibilityChecker(QMainWindow):
                     f"cxx11abiFALSE-cp{py_nodot}-cp{py_nodot}-win_amd64.whl")
         return None
 
-    def _get_fa2_linux_url(self, fa2_ver, torch_ver, python_ver):
+    def _get_fa2_linux_url(self, fa2_ver, torch_ver, python_ver, cuda_ver):
         """Build the Dao-AILab Linux FA2 wheel URL from the release tag.
 
         Wheel filename pattern (from https://github.com/Dao-AILab/flash-attention/releases):
-          flash_attn-{FA2}+cu12torch{TORCH_MM}cxx11abi{ABI}-cp{PY}-cp{PY}-linux_x86_64.whl
-        TORCH_MM is the torch major.minor (e.g. "2.8" for torch 2.8.0).
-        ABI is TRUE for torch >= 2.7 (manylinux_2_28 wheels use the new C++11 ABI)
-        and FALSE for torch 2.6.x (manylinux1, old ABI). Picking the wrong ABI either
-        404s or imports against a mismatched torch and dies with undefined symbols.
-        We only build the URL if (fa2_ver, torch_ver, python_ver) appears in
+          flash_attn-{FA2}+cu{CU}torch{TORCH_MM}cxx11abi{ABI}-cp{PY}-cp{PY}-linux_x86_64.whl
+        CU is the torch wheel's CUDA major (12 or 13). TORCH_MM is the torch
+        major.minor (e.g. "2.8" for torch 2.8.0). ABI is TRUE for torch >= 2.7
+        (manylinux_2_28 wheels use the new C++11 ABI) and FALSE for torch 2.6.x
+        (manylinux1, old ABI). Picking the wrong ABI/CUDA either 404s or imports
+        against a mismatched torch and dies with undefined symbols. We only build
+        the URL if (fa2_ver, torch_ver, python_ver, cuda_major) appears in
         self.flash_attention_linux — otherwise the wheel may not exist.
         """
-        match = any(x["fa2"] == fa2_ver and x["torch"] == torch_ver and x["python"] == python_ver
+        cuda_major = cuda_ver.split(".")[0]
+        match = any(x["fa2"] == fa2_ver and x["torch"] == torch_ver
+                    and x["python"] == python_ver and x["cuda"] == cuda_major
                     for x in self.data.flash_attention_linux)
         if not match:
             return None
@@ -821,7 +831,7 @@ class CompatibilityChecker(QMainWindow):
         torch_parts = tuple(int(p) for p in torch_ver.split(".")[:2])
         abi = "TRUE" if torch_parts >= (2, 7) else "FALSE"
         return (f"https://github.com/Dao-AILab/flash-attention/releases/download/"
-                f"v{fa2_ver}/flash_attn-{fa2_ver}%2Bcu12torch{torch_mm}"
+                f"v{fa2_ver}/flash_attn-{fa2_ver}%2Bcu{cuda_major}torch{torch_mm}"
                 f"cxx11abi{abi}-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
 
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
@@ -891,20 +901,16 @@ class CompatibilityChecker(QMainWindow):
 
                     # FA2 matching depends on platform:
                     # - Windows: exact torch + python + CUDA match against kingbri1 wheels.
-                    # - Linux: torch + python match against Dao-AILab wheels, restricted to
-                    #   CUDA 12.x (Linux FA2 wheels are built with CUDA 12.9.1 and have no
-                    #   CUDA 13.x wheels).
+                    # - Linux: torch + python + CUDA-major match against Dao-AILab wheels.
                     if platform == "windows":
                         fa2_compat = [x for x in self.data.flash_attention
                                       if x["torch"] == tc["torch"] and x["python"] == py_ver
                                       and x["cuda"] == tc["cuda"]]
                     else:
                         cuda_major = tc["cuda"].split(".")[0]
-                        if cuda_major == "12":
-                            fa2_compat = [x for x in self.data.flash_attention_linux
-                                          if x["torch"] == tc["torch"] and x["python"] == py_ver]
-                        else:
-                            fa2_compat = []
+                        fa2_compat = [x for x in self.data.flash_attention_linux
+                                      if x["torch"] == tc["torch"] and x["python"] == py_ver
+                                      and x["cuda"] == cuda_major]
 
                     fa2_versions = []
                     fa2_has_assumed = False
