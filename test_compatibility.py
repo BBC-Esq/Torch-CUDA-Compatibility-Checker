@@ -717,7 +717,9 @@ class CompatibilityChecker(QMainWindow):
             lines.append("")
             if platform == "windows":
                 lines.append(f"# Triton (Windows)")
-                lines.append(f"pip install triton-windows=={triton_pin}")
+                # triton-windows publishes only .postN releases (e.g. 3.7.0.post26);
+                # ==X.Y.Z would not match per PEP 440, so use prefix matching.
+                lines.append(f"pip install triton-windows=={triton_pin}.*")
             else:
                 lines.append(f"# Triton")
                 lines.append(f"pip install triton=={triton_pin}")
