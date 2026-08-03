@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import tempfile
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QHBoxLayout, QGridLayout, QLabel, QComboBox,
@@ -21,38 +22,55 @@ cuDNN:
   Actual cuDNN compatibility is determined by CUDA version: 9.x for CUDA 12.x (Win+Linux), 9.x for CUDA 13.x (Linux only).
 
 PLATFORM TOGGLE:
-- Windows mode: hides torch wheels lacking Windows cuDNN (cu13x), uses Windows FA2 wheels (kingbri1).
+- Windows mode: hides torch wheels not usable on Windows, uses Windows FA2 wheels (kingbri1),
+  and hides Linux-only Python versions (e.g. Python 3.15 for torch 2.13.0).
 - Linux mode: shows all torch wheels, uses official Linux FA2 wheels (Dao-AILab). Triton install uses `triton` (not `triton-windows`).
+- Two reasons a wheel is Linux-only: "no cuDNN" (Windows wheel exists, but cuDNN 9.x for
+  CUDA 13.x is Linux-only) and "no wheel" (cu129 — PyTorch stopped building it for Windows
+  at torch 2.9.1). Hover the last column for details.
 
 TRITON:
 - PyTorch hard-pins a specific triton version (same pin on Linux and Windows). The triton-windows repo says patch versions within a minor are compatible.
 
 FLASH ATTENTION 2:
-- Windows: wheels from kingbri1/flash-attention. Data last verified: April 3, 2026.
+- Windows: wheels from kingbri1/flash-attention. Data last verified: August 3, 2026 (still v2.8.3).
   Check https://github.com/kingbri1/flash-attention/releases for latest.
 - Linux: official wheels from Dao-AILab/flash-attention (cu12 wheels, plus select cu13 cp312 wheels).
+  NOTE: 2.8.3.post1 is newer than 2.8.3 but covers FEWER combinations — it has no wheels for
+  torch 2.10.0, and none for torch 2.9.0 with CUDA 12.x. Use 2.8.3 for those.
 
 MARKERS:
 - * = Assumed compatible (not officially tested)     ~ = CUDA patch version differs (same major.minor)
+- † = Wheel exists and is installable, but was NOT in that release's tagged build matrix
+      (published from the release branch after the tag was cut). Confirmed by download check.
 """
 
         self.torch_cuda = [
-            {"torch": "2.12.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False},
-            {"torch": "2.12.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": False},
+            {"torch": "2.13.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.13.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.13.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "nowheel"},
+            {"torch": "2.13.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
+            {"torch": "2.12.1", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.12.1", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.12.1", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "nowheel"},
+            {"torch": "2.12.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
+            {"torch": "2.12.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.12.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
             {"torch": "2.12.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.11.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.19.0.56", "windows": False},
-            {"torch": "2.11.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.17.1.4", "windows": True},
+            {"torch": "2.11.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.19.0.56", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.11.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.17.1.4", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.11.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.19.0.56", "windows": True},
             {"torch": "2.11.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.10.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.15.1.9", "windows": False},
-            {"torch": "2.10.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True},
+            {"torch": "2.10.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.15.1.9", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.10.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.10.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.10.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.1", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False},
-            {"torch": "2.9.1", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True},
+            {"torch": "2.9.1", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.9.1", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.9.1", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.9.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False},
+            {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.9.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "out_of_matrix": True},
             {"torch": "2.9.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.9.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.8.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True},
@@ -72,28 +90,35 @@ MARKERS:
         # cuda_versions uses major.minor (e.g. "12.4") to match against
         # the full versions in torch_cuda (e.g. "12.4.1") via major.minor extraction
         self.torch_python_triton = [
+            {"torch": "2.13.0", "cuda_versions": ["12.6", "12.9", "13.0", "13.2"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"], "python_linux_only": ["3.15"],
+             "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "sympy": ">=1.13.3"},
+            {"torch": "2.12.1", "cuda_versions": ["12.6", "12.9", "13.0", "13.2"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "sympy": ">=1.13.3"},
             {"torch": "2.12.0", "cuda_versions": ["12.6", "13.0", "13.2"],
-             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.7.0", "triton_compat": ["3.7.0"], "sympy": ">=1.13.3"},
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.7.0", "triton_compat": ["3.7.0", "3.7.1"], "sympy": ">=1.13.3"},
             {"torch": "2.11.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.6.0", "triton_compat": ["3.6.0"], "sympy": ">=1.13.3"},
             {"torch": "2.10.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.6.0", "triton_compat": ["3.6.0"], "sympy": ">=1.13.3"},
             {"torch": "2.9.1", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"], 
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.5.1", "triton_compat": ["3.5.0", "3.5.1"], "sympy": ">=1.13.3"},
-            {"torch": "2.9.0", "cuda_versions": ["12.6", "12.8", "13.0"],
+            {"torch": "2.9.0", "cuda_versions": ["12.6", "12.8", "12.9", "13.0"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.5.0", "triton_compat": ["3.5.0", "3.5.1"], "sympy": ">=1.13.3"},
             {"torch": "2.8.0", "cuda_versions": ["12.6", "12.8", "12.9"], 
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.4.0", "triton_compat": ["3.4.0"], "sympy": ">=1.13.3"},
-            {"torch": "2.7.1", "cuda_versions": ["12.6", "12.8"], 
+            {"torch": "2.7.1", "cuda_versions": ["11.8", "12.6", "12.8"],
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.3.1", "triton_compat": ["3.3.0", "3.3.1"], "sympy": ">=1.13.3"},
-            {"torch": "2.7.0", "cuda_versions": ["12.6", "12.8"], 
+            {"torch": "2.7.0", "cuda_versions": ["11.8", "12.6", "12.8"],
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.3.0", "triton_compat": ["3.3.0", "3.3.1"], "sympy": ">=1.13.3"},
-            {"torch": "2.6.0", "cuda_versions": ["12.4", "12.6"], 
+            {"torch": "2.6.0", "cuda_versions": ["11.8", "12.4", "12.6"],
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "triton": "3.2.0", "triton_compat": ["3.2.0"], "sympy": "==1.13.1"},
         ]
 
         # NOTE: torchaudio entered maintenance mode after 2.11.0; no 2.12.0 release.
         self.torch_ecosystem = {
+            "2.13.0": {"torchvision": "0.28.0", "torchaudio": "N/A"},
+            "2.12.1": {"torchvision": "0.27.1", "torchaudio": "N/A"},
             "2.12.0": {"torchvision": "0.27.0", "torchaudio": "N/A"},
             "2.11.0": {"torchvision": "0.26.0", "torchaudio": "2.11.0"},
             "2.10.0": {"torchvision": "0.25.0", "torchaudio": "2.10.0"},
@@ -108,7 +133,7 @@ MARKERS:
         # Windows Flash Attention 2 compatibility data
         # Ground truth: release assets from https://github.com/kingbri1/flash-attention/releases
         # Build matrix: build-wheels.yml (workflow_dispatch, manually triggered)
-        # LAST VERIFIED: April 3, 2026
+        # LAST VERIFIED: August 3, 2026 — re-confirmed still v2.8.3; no newer release
         # CUDA values here match the torch_cuda entries (for matching), not the FA2 build CUDA.
         self.flash_attention = [
             {"fa2": "2.8.3", "python": "3.10", "torch": "2.9.1", "cuda": "12.8.1", "assumed": True},
@@ -151,7 +176,27 @@ MARKERS:
         # ("12"/"13") is matched against the torch wheel's CUDA major. torch 2.9.0 cp312 has
         # both a cu12 and a cu13 wheel. Only torch versions also present in self.torch_cuda
         # are tracked here.
+        # v2.8.3.post1 covers LESS than v2.8.3: it drops cu12torch2.9 and cu13torch2.10.
+        # Its cu13 assets are named "flash_attn-2.8.3+cu13torch2.9...", so those entries
+        # carry "wheel_ver" to override the filename version. See COMPATIBILITY.py P6/P8.
         self.flash_attention_linux = [
+            # v2.8.3.post1
+            {"fa2": "2.8.3.post1", "python": "3.9", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.10", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.11", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.12", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.13", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.9", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.10", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.11", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.12", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.13", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.9", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.10", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.11", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.12", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.13", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post1", "python": "3.12", "torch": "2.9.0", "cuda": "13", "wheel_ver": "2.8.3"},
             # v2.8.3
             {"fa2": "2.8.3", "python": "3.9", "torch": "2.6.0", "cuda": "12"},
             {"fa2": "2.8.3", "python": "3.10", "torch": "2.6.0", "cuda": "12"},
@@ -187,7 +232,7 @@ MARKERS:
         # FA2 Windows wheel availability: (fa2_version, cu_moniker, torch_build_version) -> [python_versions]
         # Used to construct download URLs from https://github.com/kingbri1/flash-attention/releases
         # Ground truth: build-wheels.yml from kingbri1/flash-attention (main branch)
-        # LAST VERIFIED: April 3, 2026 — Windows FA2 data may be outdated; check releases for latest wheels
+        # LAST VERIFIED: August 3, 2026 — still v2.8.3 (17 assets); check releases for newer wheels
         self.fa2_windows_wheels = {
             ("2.8.3", "cu124", "2.6.0"): ["3.11"],
             ("2.8.3", "cu128", "2.7.0"): ["3.10", "3.11", "3.12", "3.13"],
@@ -239,6 +284,8 @@ MARKERS:
         # CUDA versions from cuda_version matrix in build-cuda job (builds Linux, Windows, ARM).
         # Python: py3 wheels (version-agnostic); supported range from requires-python in pyproject.toml.
         self.bitsandbytes = [
+            {"bnb": "0.50.0", "cuda": ["11.8.0", "12.1.1", "12.4.1", "12.6.3", "12.8.1", "13.0.2", "13.2.0"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
             {"bnb": "0.49.2", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
             {"bnb": "0.49.1", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"],
@@ -256,6 +303,114 @@ MARKERS:
         ]
 
         self.cuda_metapackages = {
+            "11.8.0": {
+                "cuda-nvrtc": "11.8.89", "cuda-runtime": "11.8.89", "cuda-nvcc": "11.8.89",
+                "cuda-cupti": "11.8.87", "cublas": "11.11.3.6", "cufft": "10.9.0.58",
+                "curand": "10.3.0.86", "cusolver": "11.4.1.48", "cusparse": "11.7.5.86",
+                "nvtx": "11.8.86"
+            },
+            "12.0.0": {
+                "cuda-nvrtc": "12.0.76", "cuda-runtime": "12.0.107", "cuda-nvcc": "12.0.76",
+                "cuda-cupti": "12.0.90", "cublas": "12.0.1.189", "cufft": "11.0.0.21",
+                "curand": "10.3.1.50", "cusolver": "11.4.2.57", "cusparse": "12.0.0.76",
+                "nvtx": "12.0.76", "nvjitlink": "12.0.76"
+            },
+            "12.0.1": {
+                "cuda-nvrtc": "12.0.140", "cuda-runtime": "12.0.146", "cuda-nvcc": "12.0.140",
+                "cuda-cupti": "12.0.146", "cublas": "12.0.2.224", "cufft": "11.0.1.95",
+                "curand": "10.3.1.124", "cusolver": "11.4.3.1", "cusparse": "12.0.1.140",
+                "nvtx": "12.0.140", "nvjitlink": "12.0.140"
+            },
+            "12.1.0": {
+                "cuda-nvrtc": "12.1.55", "cuda-runtime": "12.1.55", "cuda-nvcc": "12.1.66",
+                "cuda-cupti": "12.1.62", "cublas": "12.1.0.26", "cufft": "11.0.2.4",
+                "curand": "10.3.2.56", "cusolver": "11.4.4.55", "cusparse": "12.0.2.55",
+                "nvtx": "12.1.66", "nvjitlink": "12.1.55"
+            },
+            "12.1.1": {
+                "cuda-nvrtc": "12.1.105", "cuda-runtime": "12.1.105", "cuda-nvcc": "12.1.105",
+                "cuda-cupti": "12.1.105", "cublas": "12.1.3.1", "cufft": "11.0.2.54",
+                "curand": "10.3.2.106", "cusolver": "11.4.5.107", "cusparse": "12.1.0.106",
+                "nvtx": "12.1.105", "nvjitlink": "12.1.105"
+            },
+            "12.2.0": {
+                "cuda-nvrtc": "12.2.91", "cuda-runtime": "12.2.53", "cuda-nvcc": "12.2.91",
+                "cuda-cupti": "12.2.60", "cublas": "12.2.1.16", "cufft": "11.0.8.15",
+                "curand": "10.3.3.53", "cusolver": "11.5.0.53", "cusparse": "12.1.1.53",
+                "nvtx": "12.2.53", "nvjitlink": "12.2.91"
+            },
+            "12.2.1": {
+                "cuda-nvrtc": "12.2.128", "cuda-runtime": "12.2.128", "cuda-nvcc": "12.2.128",
+                "cuda-cupti": "12.2.131", "cublas": "12.2.4.5", "cufft": "11.0.8.91",
+                "curand": "10.3.3.129", "cusolver": "11.5.1.129", "cusparse": "12.1.2.129",
+                "nvtx": "12.2.128", "nvjitlink": "12.2.128"
+            },
+            "12.2.2": {
+                "cuda-nvrtc": "12.2.140", "cuda-runtime": "12.2.140", "cuda-nvcc": "12.2.140",
+                "cuda-cupti": "12.2.142", "cublas": "12.2.5.6", "cufft": "11.0.8.103",
+                "curand": "10.3.3.141", "cusolver": "11.5.2.141", "cusparse": "12.1.2.141",
+                "nvtx": "12.2.140", "nvjitlink": "12.2.140"
+            },
+            "12.3.0": {
+                "cuda-nvrtc": "12.3.52", "cuda-runtime": "12.3.52", "cuda-nvcc": "12.3.52",
+                "cuda-cupti": "12.3.52", "cublas": "12.3.2.9", "cufft": "11.0.11.19",
+                "curand": "10.3.4.52", "cusolver": "11.5.3.52", "cusparse": "12.1.3.153",
+                "nvtx": "12.3.52", "nvjitlink": "12.3.52"
+            },
+            "12.3.1": {
+                "cuda-nvrtc": "12.3.103", "cuda-runtime": "12.3.101", "cuda-nvcc": "12.3.103",
+                "cuda-cupti": "12.3.101", "cublas": "12.3.4.1", "cufft": "11.0.12.1",
+                "curand": "10.3.4.101", "cusolver": "11.5.4.101", "cusparse": "12.2.0.103",
+                "nvtx": "12.3.101", "nvjitlink": "12.3.101"
+            },
+            "12.3.2": {
+                "cuda-nvrtc": "12.3.107", "cuda-runtime": "12.3.101", "cuda-nvcc": "12.3.107",
+                "cuda-cupti": "12.3.101", "cublas": "12.3.4.1", "cufft": "11.0.12.1",
+                "curand": "10.3.4.107", "cusolver": "11.5.4.101", "cusparse": "12.2.0.103",
+                "nvtx": "12.3.101", "nvjitlink": "12.3.101"
+            },
+            "12.4.0": {
+                "cuda-nvrtc": "12.4.99", "cuda-runtime": "12.4.99", "cuda-nvcc": "12.4.99",
+                "cuda-cupti": "12.4.99", "cublas": "12.4.2.65", "cufft": "11.2.0.44",
+                "curand": "10.3.5.119", "cusolver": "11.6.0.99", "cusparse": "12.3.0.142",
+                "nvtx": "12.4.99", "nvjitlink": "12.4.99"
+            },
+            "12.4.1": {
+                "cuda-nvrtc": "12.4.127", "cuda-runtime": "12.4.127", "cuda-nvcc": "12.4.131",
+                "cuda-cupti": "12.4.127", "cublas": "12.4.5.8", "cufft": "11.2.1.3",
+                "curand": "10.3.5.147", "cusolver": "11.6.1.9", "cusparse": "12.3.1.170",
+                "nvtx": "12.4.127", "nvjitlink": "12.4.127"
+            },
+            "12.5.0": {
+                "cuda-nvrtc": "12.5.40", "cuda-runtime": "12.5.39", "cuda-nvcc": "12.5.40",
+                "cuda-cupti": "12.5.39", "cublas": "12.5.2.13", "cufft": "11.2.3.18",
+                "curand": "10.3.6.39", "cusolver": "11.6.2.40", "cusparse": "12.4.1.24",
+                "nvtx": "12.5.39", "nvjitlink": "12.5.40"
+            },
+            "12.5.1": {
+                "cuda-nvrtc": "12.5.82", "cuda-runtime": "12.5.82", "cuda-nvcc": "12.5.82",
+                "cuda-cupti": "12.5.82", "cublas": "12.5.3.2", "cufft": "11.2.3.61",
+                "curand": "10.3.6.82", "cusolver": "11.6.3.83", "cusparse": "12.5.1.3",
+                "nvtx": "12.5.82", "nvjitlink": "12.5.82"
+            },
+            "12.6.0": {
+                "cuda-nvrtc": "12.6.20", "cuda-runtime": "12.6.37", "cuda-nvcc": "12.6.20",
+                "cuda-cupti": "12.6.37", "cublas": "12.6.0.22", "cufft": "11.2.6.28",
+                "curand": "10.3.7.37", "cusolver": "11.6.4.38", "cusparse": "12.5.2.23",
+                "nvtx": "12.6.37", "nvjitlink": "12.6.20"
+            },
+            "12.6.1": {
+                "cuda-nvrtc": "12.6.68", "cuda-runtime": "12.6.68", "cuda-nvcc": "12.6.68",
+                "cuda-cupti": "12.6.68", "cublas": "12.6.1.4", "cufft": "11.2.6.59",
+                "curand": "10.3.7.68", "cusolver": "11.6.4.69", "cusparse": "12.5.3.3",
+                "nvtx": "12.6.68", "nvjitlink": "12.6.68"
+            },
+            "12.6.2": {
+                "cuda-nvrtc": "12.6.77", "cuda-runtime": "12.6.77", "cuda-nvcc": "12.6.77",
+                "cuda-cupti": "12.6.80", "cublas": "12.6.3.3", "cufft": "11.3.0.4",
+                "curand": "10.3.7.77", "cusolver": "11.7.1.2", "cusparse": "12.5.4.2",
+                "nvtx": "12.6.77", "nvjitlink": "12.6.77"
+            },
             "12.6.3": {
                 "cuda-nvrtc": "12.6.85", "cuda-runtime": "12.6.77", "cuda-nvcc": "12.6.85",
                 "cuda-cupti": "12.6.80", "cublas": "12.6.4.1", "cufft": "11.3.0.4",
@@ -274,9 +429,27 @@ MARKERS:
                 "curand": "10.3.9.90", "cusolver": "11.7.3.90", "cusparse": "12.5.8.93",
                 "nvtx": "12.8.90", "nvjitlink": "12.8.93"
             },
+            "12.8.2": {
+                "cuda-nvrtc": "12.8.93", "cuda-runtime": "12.8.90", "cuda-nvcc": "12.8.93",
+                "cuda-cupti": "12.8.90", "cublas": "12.8.5.5", "cufft": "11.3.3.83",
+                "curand": "10.3.9.90", "cusolver": "11.7.3.90", "cusparse": "12.5.8.93",
+                "nvtx": "12.8.90", "nvjitlink": "12.8.93"
+            },
+            "12.9.0": {
+                "cuda-nvrtc": "12.9.41", "cuda-runtime": "12.9.37", "cuda-nvcc": "12.9.41",
+                "cuda-cupti": "12.9.19", "cublas": "12.9.0.13", "cufft": "11.4.0.6",
+                "curand": "10.3.10.19", "cusolver": "11.7.4.40", "cusparse": "12.5.9.5",
+                "nvtx": "12.9.19", "nvjitlink": "12.9.41"
+            },
             "12.9.1": {
                 "cuda-nvrtc": "12.9.86", "cuda-runtime": "12.9.79", "cuda-nvcc": "12.9.86",
                 "cuda-cupti": "12.9.79", "cublas": "12.9.1.4", "cufft": "11.4.1.4",
+                "curand": "10.3.10.19", "cusolver": "11.7.5.82", "cusparse": "12.5.10.65",
+                "nvtx": "12.9.79", "nvjitlink": "12.9.86"
+            },
+            "12.9.2": {
+                "cuda-nvrtc": "12.9.86", "cuda-runtime": "12.9.79", "cuda-nvcc": "12.9.86",
+                "cuda-cupti": "12.9.79", "cublas": "12.9.2.10", "cufft": "11.4.1.4",
                 "curand": "10.3.10.19", "cusolver": "11.7.5.82", "cusparse": "12.5.10.65",
                 "nvtx": "12.9.79", "nvjitlink": "12.9.86"
             },
@@ -286,9 +459,21 @@ MARKERS:
                 "curand": "10.4.0.35", "cusolver": "12.0.3.29", "cusparse": "12.6.2.49",
                 "nvtx": "13.0.39", "nvjitlink": "13.0.39"
             },
+            "13.0.1": {
+                "cuda-nvrtc": "13.0.88", "cuda-runtime": "13.0.88", "cuda-nvcc": "13.0.88",
+                "cuda-cupti": "13.0.85", "cublas": "13.0.2.14", "cufft": "12.0.0.61",
+                "curand": "10.4.0.35", "cusolver": "12.0.4.66", "cusparse": "12.6.3.3",
+                "nvtx": "13.0.85", "nvjitlink": "13.0.88"
+            },
             "13.0.2": {
                 "cuda-nvrtc": "13.0.88", "cuda-runtime": "13.0.96", "cuda-nvcc": "13.0.88",
                 "cuda-cupti": "13.0.85", "cublas": "13.1.0.3", "cufft": "12.0.0.61",
+                "curand": "10.4.0.35", "cusolver": "12.0.4.66", "cusparse": "12.6.3.3",
+                "nvtx": "13.0.85", "nvjitlink": "13.0.88"
+            },
+            "13.0.3": {
+                "cuda-nvrtc": "13.0.88", "cuda-runtime": "13.0.96", "cuda-nvcc": "13.0.88",
+                "cuda-cupti": "13.0.85", "cublas": "13.1.1.3", "cufft": "12.0.0.61",
                 "curand": "10.4.0.35", "cusolver": "12.0.4.66", "cusparse": "12.6.3.3",
                 "nvtx": "13.0.85", "nvjitlink": "13.0.88"
             },
@@ -304,6 +489,12 @@ MARKERS:
                 "curand": "10.4.1.81", "cusolver": "12.0.9.81", "cusparse": "12.7.3.1",
                 "nvtx": "13.1.115", "nvjitlink": "13.1.115"
             },
+            "13.1.2": {
+                "cuda-nvrtc": "13.1.115", "cuda-runtime": "13.1.80", "cuda-nvcc": "13.1.115",
+                "cuda-cupti": "13.1.115", "cublas": "13.2.2.2", "cufft": "12.1.0.78",
+                "curand": "10.4.1.81", "cusolver": "12.0.9.81", "cusparse": "12.7.3.1",
+                "nvtx": "13.1.115", "nvjitlink": "13.1.115"
+            },
             "13.2.0": {
                 "cuda-nvrtc": "13.2.51", "cuda-runtime": "13.2.51", "cuda-nvcc": "13.2.51",
                 "cuda-cupti": "13.2.23", "cublas": "13.3.0.5", "cufft": "12.2.0.37",
@@ -316,10 +507,22 @@ MARKERS:
                 "curand": "10.4.2.55", "cusolver": "12.2.0.1", "cusparse": "12.7.10.1",
                 "nvtx": "13.2.75", "nvjitlink": "13.2.78"
             },
+            "13.2.2": {
+                "cuda-nvrtc": "13.2.86", "cuda-runtime": "13.2.86", "cuda-nvcc": "13.2.86",
+                "cuda-cupti": "13.2.86", "cublas": "13.4.1.3", "cufft": "12.2.0.57",
+                "curand": "10.4.2.66", "cusolver": "12.2.0.11", "cusparse": "12.7.10.12",
+                "nvtx": "13.2.86", "nvjitlink": "13.2.86"
+            },
             "13.3.0": {
                 "cuda-nvrtc": "13.3.33", "cuda-runtime": "13.3.29", "cuda-nvcc": "13.3.33",
                 "cuda-cupti": "13.3.35", "cublas": "13.5.1.27", "cufft": "12.3.0.29",
                 "curand": "10.4.3.29", "cusolver": "12.2.2.18", "cusparse": "12.8.1.7",
+                "nvtx": "13.3.29", "nvjitlink": "13.3.33"
+            },
+            "13.3.1": {
+                "cuda-nvrtc": "13.3.33", "cuda-runtime": "13.3.29", "cuda-nvcc": "13.3.73",
+                "cuda-cupti": "13.3.75", "cublas": "13.6.0.2", "cufft": "12.3.0.29",
+                "curand": "10.4.3.29", "cusolver": "12.2.6.9", "cusparse": "12.8.2.51",
                 "nvtx": "13.3.29", "nvjitlink": "13.3.33"
             }
         }
@@ -343,7 +546,13 @@ class CompatibilityChecker(QMainWindow):
 
     @staticmethod
     def _version_sorted(values, reverse=False):
-        return sorted(values, key=lambda v: tuple(int(p) for p in v.split(".")), reverse=reverse)
+        def key(value):
+            parts = []
+            for seg in str(value).split("."):
+                m = re.match(r"(\d+)", seg)
+                parts.append((int(m.group(1)), seg[m.end():]) if m else (0, seg))
+            return parts
+        return sorted(values, key=key, reverse=reverse)
 
     def init_ui(self):
         self.setWindowTitle("PyTorch CUDA Compatibility Checker")
@@ -498,6 +707,7 @@ class CompatibilityChecker(QMainWindow):
         for color, symbol, desc in [
             (QColor(255, 165, 0), "*", "Assumed compatible (not officially tested)"),
             (QColor(100, 149, 237), "~", "CUDA patch version differs (same major.minor)"),
+            (QColor(186, 148, 214), "†", "Wheel exists but was not in the tagged release matrix"),
         ]:
             swatch = QLabel()
             swatch.setFixedSize(14, 14)
@@ -648,7 +858,7 @@ class CompatibilityChecker(QMainWindow):
         if has_meta and has_compat:
             cuda_col = next((i for i, h in enumerate(compat_headers) if h == "CUDA (torch-tested)"), -1)
             if cuda_col >= 0:
-                compatible_cudas = set(row[cuda_col] for row in compat_rows)
+                compatible_cudas = set(row[cuda_col].replace("†", "").strip() for row in compat_rows)
                 keep_cols = [0]
                 for i in range(1, len(meta_headers)):
                     if meta_headers[i] in compatible_cudas:
@@ -703,7 +913,7 @@ class CompatibilityChecker(QMainWindow):
         torchvision_ver = self._get_cell(row, 1)
         torchaudio_ver = self._get_cell(row, 2)
         python_ver = self._get_cell(row, 3)
-        cuda_ver = self._get_cell(row, 5)  # CUDA (torch-tested) column
+        cuda_ver = self._get_cell(row, 5).replace("†", "").strip()  # CUDA (torch-tested) column
         fa2_cell = self._get_cell(row, 8)
         xf_cell = self._get_cell(row, 9)
         bnb_cell = self._get_cell(row, 10)
@@ -811,7 +1021,10 @@ class CompatibilityChecker(QMainWindow):
         """Build the Dao-AILab Linux FA2 wheel URL from the release tag.
 
         Wheel filename pattern (from https://github.com/Dao-AILab/flash-attention/releases):
-          flash_attn-{FA2}+cu{CU}torch{TORCH_MM}cxx11abi{ABI}-cp{PY}-cp{PY}-linux_x86_64.whl
+          flash_attn-{WHEEL_VER}+cu{CU}torch{TORCH_MM}cxx11abi{ABI}-cp{PY}-cp{PY}-linux_x86_64.whl
+        WHEEL_VER is normally the FA2 release version, but some assets carry a
+        different version in the filename than their release tag (v2.8.3.post1's cu13
+        assets are named 2.8.3), so the matched entry's "wheel_ver" wins when present.
         CU is the torch wheel's CUDA major (12 or 13). TORCH_MM is the torch
         major.minor (e.g. "2.8" for torch 2.8.0). ABI is TRUE for torch >= 2.7
         (manylinux_2_28 wheels use the new C++11 ABI) and FALSE for torch 2.6.x
@@ -821,17 +1034,18 @@ class CompatibilityChecker(QMainWindow):
         self.flash_attention_linux — otherwise the wheel may not exist.
         """
         cuda_major = cuda_ver.split(".")[0]
-        match = any(x["fa2"] == fa2_ver and x["torch"] == torch_ver
-                    and x["python"] == python_ver and x["cuda"] == cuda_major
-                    for x in self.data.flash_attention_linux)
-        if not match:
+        entry = next((x for x in self.data.flash_attention_linux
+                      if x["fa2"] == fa2_ver and x["torch"] == torch_ver
+                      and x["python"] == python_ver and x["cuda"] == cuda_major), None)
+        if entry is None:
             return None
+        wheel_ver = entry.get("wheel_ver", fa2_ver)
         py_nodot = python_ver.replace(".", "")
         torch_mm = ".".join(torch_ver.split(".")[:2])
         torch_parts = tuple(int(p) for p in torch_ver.split(".")[:2])
         abi = "TRUE" if torch_parts >= (2, 7) else "FALSE"
         return (f"https://github.com/Dao-AILab/flash-attention/releases/download/"
-                f"v{fa2_ver}/flash_attn-{fa2_ver}%2Bcu{cuda_major}torch{torch_mm}"
+                f"v{fa2_ver}/flash_attn-{wheel_ver}%2Bcu{cuda_major}torch{torch_mm}"
                 f"cxx11abi{abi}-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
 
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
@@ -897,6 +1111,8 @@ class CompatibilityChecker(QMainWindow):
 
                 for py_ver in pt["python"]:
                     if python_sel and py_ver != python_sel:
+                        continue
+                    if platform == "windows" and py_ver in pt.get("python_linux_only", []):
                         continue
 
                     # FA2 matching depends on platform:
@@ -977,14 +1193,17 @@ class CompatibilityChecker(QMainWindow):
 
                     # "Wheel on this platform" status. In Windows mode we've already
                     # filtered out tc.windows == False, so this is always "Yes" in
-                    # Windows mode. In Linux mode, all tc entries are usable.
+                    # Windows mode. In Linux mode, all tc entries are usable, but we
+                    # distinguish WHY a row is Linux-only: the Windows wheel exists but
+                    # has no cuDNN, versus no Windows wheel being built at all.
                     if platform == "windows":
                         windows_support = "Yes"
+                    elif tc.get("windows", True):
+                        windows_support = "Yes"
+                    elif tc.get("no_win_reason") == "nowheel":
+                        windows_support = "Linux-only: no wheel"
                     else:
-                        # On Linux every torch wheel is usable. Mark cu13x wheels as
-                        # "Linux-only" so the user sees why they appear here but not
-                        # in Windows mode.
-                        windows_support = "Linux-only" if not tc.get("windows", True) else "Yes"
+                        windows_support = "Linux-only: no cuDNN"
 
                     triton_pin = pt["triton"]
                     triton_compat_list = pt["triton_compat"]
@@ -1004,6 +1223,7 @@ class CompatibilityChecker(QMainWindow):
                         "cuda_family": '.'.join(tc["cuda"].split('.')[:2]),
                         "cuda_exact_match": cuda_exact,
                         "cuda_selected": cuda_sel,
+                        "out_of_matrix": tc.get("out_of_matrix", False),
                         "cudnn": tc["cudnn"],
                         "triton": triton_display,
                         "fa2": ", ".join(sorted(fa2_versions, reverse=True)),
@@ -1056,7 +1276,18 @@ class CompatibilityChecker(QMainWindow):
                 self.compat_table.setItem(i, 4, make_item(combo["cuda_family"]))
 
                 # CUDA (torch-tested) — exact version, informational
-                self.compat_table.setItem(i, 5, make_item(combo["cuda"]))
+                if combo["out_of_matrix"]:
+                    tested_item = make_item(combo["cuda"] + " †")
+                    tested_item.setBackground(QColor(186, 148, 214))
+                    tested_item.setForeground(QColor(0, 0, 0))
+                    tested_item.setToolTip(
+                        "† This wheel EXISTS and is installable, but it was NOT in this\n"
+                        "release's tagged build matrix — it was published from the release\n"
+                        "branch after the tag was cut. Verified by direct download check.\n"
+                        "Do not 'correct' this row by consulting only the tagged matrix.")
+                    self.compat_table.setItem(i, 5, tested_item)
+                else:
+                    self.compat_table.setItem(i, 5, make_item(combo["cuda"]))
 
                 # cuDNN (torch-tested) — informational
                 cudnn_item = make_item(combo["cudnn"])
@@ -1094,10 +1325,19 @@ class CompatibilityChecker(QMainWindow):
                 self.compat_table.setItem(i, 10, bnb_item)
 
                 windows_item = make_item(combo["windows"])
-                if combo["windows"] == "Linux-only":
+                if combo["windows"] == "Linux-only: no cuDNN":
                     windows_item.setBackground(QColor(255, 200, 100))
                     windows_item.setForeground(QColor(0, 0, 0))
-                    windows_item.setToolTip("This torch wheel exists but cuDNN 9.x for CUDA 13.x is Linux-only")
+                    windows_item.setToolTip(
+                        "A Windows wheel IS built for this combination, but cuDNN 9.x for\n"
+                        "CUDA 13.x is Linux-only, so cuDNN-backed ops are unavailable.")
+                elif combo["windows"] == "Linux-only: no wheel":
+                    windows_item.setBackground(QColor(240, 130, 130))
+                    windows_item.setForeground(QColor(0, 0, 0))
+                    windows_item.setToolTip(
+                        "PyTorch does not build a Windows wheel for this CUDA version at all\n"
+                        "(CUDA 12.9 is excluded from the Windows build from torch 2.9.1 onward).\n"
+                        "The download does not exist.")
                 self.compat_table.setItem(i, 11, windows_item)
 
             self.compat_table.resizeColumnsToContents()
@@ -1136,8 +1376,12 @@ class CompatibilityChecker(QMainWindow):
                 self.metapackage_table.setItem(0, 0, QTableWidgetItem("No metapackage data available for this CUDA version"))
         else:
             # "Any" selected — show all CUDA versions as columns
-            cuda_versions = sorted(self.data.cuda_metapackages.keys())
-            package_names = list(next(iter(self.data.cuda_metapackages.values())).keys())
+            cuda_versions = self._version_sorted(self.data.cuda_metapackages.keys())
+            package_names = []
+            for pkgs in self.data.cuda_metapackages.values():
+                for name in pkgs:
+                    if name not in package_names:
+                        package_names.append(name)
 
             self.metapackage_table.setRowCount(len(package_names))
             self.metapackage_table.setColumnCount(1 + len(cuda_versions))
