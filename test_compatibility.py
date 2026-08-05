@@ -3,47 +3,60 @@ import os
 import re
 import tempfile
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                               QHBoxLayout, QGridLayout, QLabel, QComboBox,
-                               QCheckBox, QPushButton, QTableWidget,
+                               QHBoxLayout, QFormLayout, QLabel, QComboBox,
+                               QPushButton, QTableWidget, QSizePolicy,
                                QTableWidgetItem, QTabWidget, QGroupBox,
-                               QAbstractItemView, QMenu)
+                               QAbstractItemView, QMenu, QSplitter, QScrollArea)
 from PySide6.QtCore import Qt, QSettings, QUrl
 from PySide6.QtGui import QFont, QColor, QDesktopServices, QAction
 
 class CompatibilityData:
     def __init__(self):
-        self.windows_notes = """
-CUDA MATCHING:
-- Torch wheels (cu126, cu128, etc.) match CUDA by major.minor family (e.g. cu130 matches any 13.0.x).
-  The "CUDA (tested)" column shows the specific version PyTorch tested against.
+        # One list per on-screen column, rendered left to right. The block's height
+        # is set by its tallest column, so pair sections to keep the columns even.
+        # Two things deliberately live elsewhere rather than here:
+        #   - the marker key (* ~ †) is in the legend bar under the table;
+        #   - the platform explanation is the tooltip on the Platform filter, since
+        #     it is guidance about that one control.
+        self.notes_sections = [
+            [
+                ("CUDA MATCHING", [
+                    "Wheels match CUDA by major.minor family — cu130 matches any 13.0.x.",
+                    "\"CUDA (torch-tested)\" is the exact version PyTorch built against.",
+                ]),
+                ("FLASH ATTENTION 2", [
+                    "Windows — kingbri1/flash-attention; verified Aug 3 2026 (still v2.8.3).",
+                    "Linux — Dao-AILab: cu12 wheels plus select cu13 cp312 wheels.",
+                    "2.8.3.post1 covers FEWER combos than 2.8.3 — none for torch 2.10.0 or 2.9.0+CUDA 12.x.",
+                ]),
+            ],
+            [
+                ("cuDNN", [
+                    "Informational only — what PyTorch tested with, not a requirement.",
+                    "Support follows CUDA: 9.x for 12.x (Win + Linux); 9.x for 13.x (Linux only).",
+                ]),
+                ("TRITON", [
+                    "PyTorch pins one triton version — the same pin on both platforms.",
+                    "Patch versions within a minor are interchangeable.",
+                ]),
+            ],
+        ]
 
-cuDNN:
-- The cuDNN column is informational — it shows what PyTorch tested with, not a requirement.
-  Actual cuDNN compatibility is determined by CUDA version: 9.x for CUDA 12.x (Win+Linux), 9.x for CUDA 13.x (Linux only).
-
-PLATFORM TOGGLE:
-- Windows mode: hides torch wheels not usable on Windows, uses Windows FA2 wheels (kingbri1),
-  and hides Linux-only Python versions (e.g. Python 3.15 for torch 2.13.0).
-- Linux mode: shows all torch wheels, uses official Linux FA2 wheels (Dao-AILab). Triton install uses `triton` (not `triton-windows`).
-- Two reasons a wheel is Linux-only: "no cuDNN" (Windows wheel exists, but cuDNN 9.x for
-  CUDA 13.x is Linux-only) and "no wheel" (cu129 — PyTorch stopped building it for Windows
-  at torch 2.9.1). Hover the last column for details.
-
-TRITON:
-- PyTorch hard-pins a specific triton version (same pin on Linux and Windows). The triton-windows repo says patch versions within a minor are compatible.
-
-FLASH ATTENTION 2:
-- Windows: wheels from kingbri1/flash-attention. Data last verified: August 3, 2026 (still v2.8.3).
-  Check https://github.com/kingbri1/flash-attention/releases for latest.
-- Linux: official wheels from Dao-AILab/flash-attention (cu12 wheels, plus select cu13 cp312 wheels).
-  NOTE: 2.8.3.post1 is newer than 2.8.3 but covers FEWER combinations — it has no wheels for
-  torch 2.10.0, and none for torch 2.9.0 with CUDA 12.x. Use 2.8.3 for those.
-
-MARKERS:
-- * = Assumed compatible (not officially tested)     ~ = CUDA patch version differs (same major.minor)
-- † = Wheel exists and is installable, but was NOT in that release's tagged build matrix
-      (published from the release branch after the tag was cut). Confirmed by download check.
-"""
+        self.platform_tooltip = (
+            "Windows — hides wheels that are unusable on Windows, uses the kingbri1\n"
+            "Flash Attention 2 wheels, and hides Linux-only Python versions\n"
+            "(for example Python 3.15 on torch 2.13.0).\n"
+            "\n"
+            "Linux — shows every wheel, uses the official Dao-AILab Flash Attention 2\n"
+            "wheels, and installs triton rather than triton-windows.\n"
+            "\n"
+            "A row marked Linux-only is either:\n"
+            "  • \"no cuDNN\" — the Windows wheel is built, but cuDNN 9.x for CUDA 13.x\n"
+            "    is Linux-only, so cuDNN-backed ops are unavailable; or\n"
+            "  • \"no wheel\" — PyTorch builds no Windows wheel at all (cu129, dropped\n"
+            "    from the Windows build at torch 2.9.1).\n"
+            "Hover the last column of a row to see which applies."
+        )
 
         self.torch_cuda = [
             {"torch": "2.13.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
@@ -545,6 +558,38 @@ class CompatibilityChecker(QMainWindow):
         self.update_compatibility()
 
     @staticmethod
+    def _fit_table_columns(table):
+        """Size columns to their content, then share any leftover width evenly.
+
+        Replaces stretchLastSection, which dumped every spare pixel into the final
+        column and left it several times wider than the rest. Content width is the
+        floor, so nothing is ever truncated; the surplus is only distributed when
+        the table is narrower than its viewport.
+        """
+        count = table.columnCount()
+        if not count:
+            return
+        header = table.horizontalHeader()
+        table.resizeColumnsToContents()
+        content = sum(header.sectionSize(i) for i in range(count))
+        spare = table.viewport().width() - content
+        if spare <= 0:
+            return
+        share, remainder = divmod(spare, count)
+        for i in range(count):
+            bonus = share + (1 if i < remainder else 0)
+            header.resizeSection(i, header.sectionSize(i) + bonus)
+
+    def _refit_visible_tables(self):
+        for table in (self.compat_table, self.metapackage_table):
+            self._fit_table_columns(table)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if getattr(self, "compat_table", None) is not None:
+            self._refit_visible_tables()
+
+    @staticmethod
     def _version_sorted(values, reverse=False):
         def key(value):
             parts = []
@@ -553,6 +598,51 @@ class CompatibilityChecker(QMainWindow):
                 parts.append((int(m.group(1)), seg[m.end():]) if m else (0, seg))
             return parts
         return sorted(values, key=key, reverse=reverse)
+
+    def _build_notes_group(self):
+        """Lay the compatibility notes out as side-by-side columns.
+
+        Previously one wrapped QLabel, which rendered as a tall narrow block and
+        left the right half of a maximized window empty. Spreading the sections
+        across the full width cuts the height enough to afford a larger font
+        while still showing every section at once.
+
+        Columns come straight from self.data.notes_sections rather than being
+        auto-balanced: a grid would pad every cell in a row out to the tallest one,
+        and an automatic packer makes the arrangement awkward to tune by hand.
+        The height of the block is set by its longest column, so keep the tallest
+        and shortest sections paired together when editing.
+        """
+        group = QGroupBox("Compatibility Notes")
+        group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+
+        outer = QHBoxLayout()
+        outer.setContentsMargins(10, 4, 10, 6)
+        outer.setSpacing(22)
+
+        for bucket in self.data.notes_sections:
+            col = QVBoxLayout()
+            col.setSpacing(6)
+            for heading, bullets in bucket:
+                header = QLabel(heading)
+                header.setStyleSheet("color: #cc6600; font-weight: bold; font-size: 10.5pt;")
+                col.addWidget(header)
+
+                body = QLabel("\n".join("• " + b for b in bullets))
+                body.setWordWrap(True)
+                body.setTextFormat(Qt.PlainText)
+                body.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+                body.setStyleSheet("font-size: 10pt;")
+                body.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+                col.addWidget(body)
+            col.addStretch()
+
+            holder = QWidget()
+            holder.setLayout(col)
+            outer.addWidget(holder, 1)
+
+        group.setLayout(outer)
+        return group
 
     def init_ui(self):
         self.setWindowTitle("PyTorch CUDA Compatibility Checker")
@@ -570,26 +660,25 @@ class CompatibilityChecker(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        notes_group = QGroupBox("Compatibility Notes")
-        notes_layout = QVBoxLayout()
-        notes_text = QLabel(self.data.windows_notes)
-        notes_text.setStyleSheet("color: #cc6600; font-weight: bold;")
-        notes_layout.addWidget(notes_text)
-        notes_group.setLayout(notes_layout)
-        layout.addWidget(notes_group)
+        layout.addWidget(self._build_notes_group())
+
+        side_panel = QWidget()
+        side_layout = QVBoxLayout(side_panel)
+        side_layout.setContentsMargins(0, 0, 6, 0)
+        side_layout.setSpacing(6)
 
         selection_group = QGroupBox("Select Library Versions")
         selection_layout = QVBoxLayout()
 
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(8)
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        form.setHorizontalSpacing(8)
+        form.setVerticalSpacing(6)
 
-        # Row 0: PyTorch, Python, CUDA, Windows Only
         self.torch_combo = QComboBox()
         self.torch_combo.addItem("Any")
         self.torch_combo.addItems(self._version_sorted(set(x["torch"] for x in self.data.torch_cuda), reverse=True))
-        self.torch_combo.setMinimumWidth(130)
         self.torch_combo.currentTextChanged.connect(self.update_compatibility)
 
         self.python_combo = QComboBox()
@@ -598,7 +687,6 @@ class CompatibilityChecker(QMainWindow):
         for item in self.data.torch_python_triton:
             all_python.update(item["python"])
         self.python_combo.addItems(self._version_sorted(all_python, reverse=True))
-        self.python_combo.setMinimumWidth(130)
         self.python_combo.currentTextChanged.connect(self.update_compatibility)
 
         self.cuda_combo = QComboBox()
@@ -606,38 +694,24 @@ class CompatibilityChecker(QMainWindow):
         all_cuda = set(x["cuda"] for x in self.data.torch_cuda)
         all_cuda.update(self.data.cuda_metapackages.keys())
         self.cuda_combo.addItems(self._version_sorted(all_cuda, reverse=True))
-        self.cuda_combo.setMinimumWidth(130)
         self.cuda_combo.currentTextChanged.connect(self.update_compatibility)
 
         self.platform_combo = QComboBox()
         self.platform_combo.addItems(["Windows", "Linux"])
         self.platform_combo.setCurrentText("Windows")
-        self.platform_combo.setMinimumWidth(130)
         self.platform_combo.currentTextChanged.connect(self.update_compatibility)
 
-        grid.addWidget(QLabel("PyTorch:"), 0, 0, Qt.AlignRight)
-        grid.addWidget(self.torch_combo, 0, 1)
-        grid.addWidget(QLabel("Python:"), 0, 2, Qt.AlignRight)
-        grid.addWidget(self.python_combo, 0, 3)
-        grid.addWidget(QLabel("CUDA:"), 0, 4, Qt.AlignRight)
-        grid.addWidget(self.cuda_combo, 0, 5)
-        grid.addWidget(QLabel("Platform:"), 0, 6, Qt.AlignRight)
-        grid.addWidget(self.platform_combo, 0, 7)
-
-        # Row 1: Flash Attn 2, Xformers, Triton, bitsandbytes
         self.fa2_combo = QComboBox()
         self.fa2_combo.addItem("Any")
         # Populate FA2 combo with the union of Windows + Linux FA2 versions.
         all_fa2 = set(x["fa2"] for x in self.data.flash_attention)
         all_fa2.update(x["fa2"] for x in self.data.flash_attention_linux)
         self.fa2_combo.addItems(self._version_sorted(all_fa2, reverse=True))
-        self.fa2_combo.setMinimumWidth(130)
         self.fa2_combo.currentTextChanged.connect(self.update_compatibility)
 
         self.xformers_combo = QComboBox()
         self.xformers_combo.addItem("Any")
         self.xformers_combo.addItems([x["xformers"] for x in self.data.xformers])
-        self.xformers_combo.setMinimumWidth(130)
         self.xformers_combo.currentTextChanged.connect(self.update_compatibility)
 
         self.triton_combo = QComboBox()
@@ -646,60 +720,74 @@ class CompatibilityChecker(QMainWindow):
         for item in self.data.torch_python_triton:
             all_triton.update(item["triton_compat"])
         self.triton_combo.addItems(self._version_sorted(all_triton, reverse=True))
-        self.triton_combo.setMinimumWidth(130)
         self.triton_combo.currentTextChanged.connect(self.update_compatibility)
 
         self.bnb_combo = QComboBox()
         self.bnb_combo.addItem("Any")
         self.bnb_combo.addItems([x["bnb"] for x in self.data.bitsandbytes])
-        self.bnb_combo.setMinimumWidth(130)
         self.bnb_combo.currentTextChanged.connect(self.update_compatibility)
 
-        grid.addWidget(QLabel("Flash Attn 2:"), 1, 0, Qt.AlignRight)
-        grid.addWidget(self.fa2_combo, 1, 1)
-        grid.addWidget(QLabel("Xformers:"), 1, 2, Qt.AlignRight)
-        grid.addWidget(self.xformers_combo, 1, 3)
-        grid.addWidget(QLabel("Triton:"), 1, 4, Qt.AlignRight)
-        grid.addWidget(self.triton_combo, 1, 5)
-        grid.addWidget(QLabel("bitsandbytes:"), 1, 6, Qt.AlignRight)
-        grid.addWidget(self.bnb_combo, 1, 7)
+        for label_text, combo, tooltip in [
+            ("PyTorch:", self.torch_combo, ""),
+            ("Python:", self.python_combo, ""),
+            ("CUDA:", self.cuda_combo, ""),
+            ("Platform:", self.platform_combo, self.data.platform_tooltip),
+            ("Flash Attn 2:", self.fa2_combo, ""),
+            ("Xformers:", self.xformers_combo, ""),
+            ("Triton:", self.triton_combo, ""),
+            ("bitsandbytes:", self.bnb_combo, ""),
+        ]:
+            combo.setMinimumWidth(92)
+            combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            label = QLabel(label_text)
+            if tooltip:
+                label.setToolTip(tooltip)
+                combo.setToolTip(tooltip)
+            form.addRow(label, combo)
 
-        # Let combo columns stretch equally
-        for col in (1, 3, 5, 7):
-            grid.setColumnStretch(col, 1)
-
-        selection_layout.addLayout(grid)
-
-        btn_layout = QHBoxLayout()
-        reset_btn = QPushButton("Reset All")
-        reset_btn.clicked.connect(self.reset_selections)
-        btn_layout.addWidget(reset_btn)
-        export_btn = QPushButton("Export to TXT")
-        export_btn.clicked.connect(self.export_to_txt)
-        btn_layout.addWidget(export_btn)
-        clipboard_btn = QPushButton("Copy to Clipboard")
-        clipboard_btn.clicked.connect(self.copy_to_clipboard)
-        btn_layout.addWidget(clipboard_btn)
-        selection_layout.addLayout(btn_layout)
-
+        selection_layout.addLayout(form)
         selection_group.setLayout(selection_layout)
-        layout.addWidget(selection_group)
+        side_layout.addWidget(selection_group)
+
+        for text, slot in [("Reset All", self.reset_selections),
+                           ("Export to TXT", self.export_to_txt),
+                           ("Copy to Clipboard", self.copy_to_clipboard)]:
+            btn = QPushButton(text)
+            btn.clicked.connect(slot)
+            side_layout.addWidget(btn)
+
+        side_layout.addStretch()
+
+        side_scroll = QScrollArea()
+        side_scroll.setWidget(side_panel)
+        side_scroll.setWidgetResizable(True)
+        side_scroll.setFrameShape(QScrollArea.NoFrame)
+        side_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        side_scroll.setMinimumWidth(210)
+        side_scroll.setMaximumWidth(420)
 
         self.tabs = QTabWidget()
 
         self.compat_table = QTableWidget()
         self.compat_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.compat_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.compat_table.horizontalHeader().setStretchLastSection(True)
+        self.compat_table.horizontalHeader().setStretchLastSection(False)
         self.tabs.addTab(self.compat_table, "Compatible Combinations")
 
         self.metapackage_table = QTableWidget()
         self.metapackage_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.metapackage_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.metapackage_table.horizontalHeader().setStretchLastSection(True)
+        self.metapackage_table.horizontalHeader().setStretchLastSection(False)
         self.tabs.addTab(self.metapackage_table, "CUDA Metapackages")
 
-        layout.addWidget(self.tabs)
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.addWidget(side_scroll)
+        self.splitter.addWidget(self.tabs)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setChildrenCollapsible(True)
+        self.splitter.setSizes([230, 1200])
+        layout.addWidget(self.splitter, 1)
 
         # Legend bar
         legend_layout = QHBoxLayout()
@@ -730,6 +818,8 @@ class CompatibilityChecker(QMainWindow):
         if self.settings.contains("window/tab_index"):
             tab_index = int(self.settings.value("window/tab_index"))
             self.tabs.setCurrentIndex(tab_index)
+        if self.settings.contains("window/splitter"):
+            self.splitter.restoreState(self.settings.value("window/splitter"))
 
         filter_combos = {
             "filters/torch": self.torch_combo,
@@ -761,6 +851,7 @@ class CompatibilityChecker(QMainWindow):
         self.settings.setValue("window/geometry", self.saveGeometry())
         self.settings.setValue("window/state", self.saveState())
         self.settings.setValue("window/tab_index", self.tabs.currentIndex())
+        self.settings.setValue("window/splitter", self.splitter.saveState())
         self.settings.setValue("filters/torch", self.torch_combo.currentText())
         self.settings.setValue("filters/python", self.python_combo.currentText())
         self.settings.setValue("filters/cuda", self.cuda_combo.currentText())
@@ -1243,7 +1334,7 @@ class CompatibilityChecker(QMainWindow):
             last_col_header = "Win cuDNN" if platform == "windows" else "Platform"
             self.compat_table.setHorizontalHeaderLabels(
                 ["PyTorch", "Torchvision", "Torchaudio", "Python",
-                 "CUDA (compatible)", "CUDA (torch-tested)", "cuDNN (torch-tested)",
+                 "CUDA (compatible)", "CUDA (torch-tested)", "cuDNN",
                  "Triton", "Flash Attn 2", "Xformers", "bitsandbytes", last_col_header])
 
             # Add header tooltips
@@ -1340,7 +1431,7 @@ class CompatibilityChecker(QMainWindow):
                         "The download does not exist.")
                 self.compat_table.setItem(i, 11, windows_item)
 
-            self.compat_table.resizeColumnsToContents()
+            self._fit_table_columns(self.compat_table)
         else:
             self.compat_table.setRowCount(1)
             self.compat_table.setColumnCount(1)
@@ -1368,7 +1459,7 @@ class CompatibilityChecker(QMainWindow):
                     self.metapackage_table.setItem(i, 0, pkg_item)
                     self.metapackage_table.setItem(i, 1, ver_item)
 
-                self.metapackage_table.resizeColumnsToContents()
+                self._fit_table_columns(self.metapackage_table)
             else:
                 self.metapackage_table.setRowCount(1)
                 self.metapackage_table.setColumnCount(1)
@@ -1398,7 +1489,7 @@ class CompatibilityChecker(QMainWindow):
                     ver_item.setTextAlignment(Qt.AlignCenter)
                     self.metapackage_table.setItem(i, col, ver_item)
 
-            self.metapackage_table.resizeColumnsToContents()
+            self._fit_table_columns(self.metapackage_table)
 
 
 if __name__ == "__main__":
