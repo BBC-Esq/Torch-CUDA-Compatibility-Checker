@@ -169,10 +169,21 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   "no exclusion found" and produces bogus windows=True data.
 #     torch 2.9.1 - 2.11.0 use:  windows_cuda_arches = CUDA_ARCHES.copy()
 #                                windows_cuda_arches.remove("12.9")
-#     torch 2.12.1+      use:    windows_cuda_arches = list_without(CUDA_ARCHES, ["12.9"])
-#   Grep for BOTH, plus any future variant, by searching the `elif os == "windows":`
+#     torch 2.12.1 - 2.13.0 use: windows_cuda_arches = list_without(CUDA_ARCHES, ["12.9"])
+#     torch 2.14.0+      use:    CUDA_ARCHES_NO_WINDOWS: list[str] = []      (module level)
+#                                arches += list_without(CUDA_ARCHES, CUDA_ARCHES_NO_WINDOWS)
+#   The 2.14 form is the dangerous one: it moved the excluded versions OFF the exclusion
+#   site and into a named module-level constant. A grep for the 2.12 literal
+#   `list_without(CUDA_ARCHES, ["` returns nothing on 2.14 and reads as "no exclusion."
+#   For 2.14 that conclusion is accidentally correct (the constant is empty, so all of
+#   12.6/13.0/13.2 build for Windows) — but it is correct by luck. Add one version to
+#   that constant and the same grep silently produces bogus windows=True data.
+#   ALWAYS resolve the CONSTANT'S VALUE, not just the shape of the exclusion call.
+#   Grep for ALL THREE, plus any future variant, by searching the `elif os == "windows":`
 #   branch directly rather than for a specific helper name:
 #     grep -A 8 'elif os == "windows"' generate_binary_build_matrix.py
+#   then grep the constant that branch names, e.g.:
+#     grep -n 'CUDA_ARCHES_NO_WINDOWS' generate_binary_build_matrix.py
 #   Then still do P1.
 #
 #   Known history of the cu129 Windows wheel (verified by HEAD request):
@@ -184,6 +195,7 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #     2.12.0 -> n/a (12.9 not in CUDA_ARCHES at all)
 #     2.12.1 -> ABSENT (403)
 #     2.13.0 -> ABSENT (403)
+#     2.14.0 -> n/a (12.9 not in CUDA_ARCHES at all; RC-only as of 2026-08-29)
 #
 #
 # --- P3. cuDNN pins are per-CUDA-arch and live in a DIFFERENT dict. ---
@@ -199,8 +211,10 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #
 # --- P4. PyPI "latest" can be YANKED or a prerelease. Filter both. ---
 #   info.version is not always safe. Two real cases:
-#     - nvidia-cudnn-cu12/cu13 9.25.0.15 exists but EVERY file is yanked. The correct
-#       "latest usable" is 9.24.0.43.
+#     - nvidia-cudnn-cu12/cu13 9.25.0.15 exists but EVERY file is yanked. When that was
+#       the newest version the correct "latest usable" was 9.24.0.43; as of 2026-08-29
+#       it is 9.25.1.1, which superseded the yanked build. The yank is permanent — a
+#       yanked version never becomes valid again, so keep filtering it.
 #     - xformers publishes many 0.0.35.devNNNN builds; flash-attention publishes
 #       fa4-v4.0.0.betaNN prereleases. Neither is a stable release.
 #   Filter with: skip if Version(v).is_prerelease, and skip if all(f["yanked"] for f in files).
@@ -328,7 +342,7 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #             (drop prereleases and fully-yanked versions — see P4)
 #     GitHub: curl -s https://api.github.com/repos/{owner}/{repo}/releases?per_page=100
 #     NVIDIA: enumerate the redist index (see the CUDA entry above)
-#   Audited this way on 2026-08-03: torch, torchvision, torchaudio, triton, xformers,
+#   Audited this way on 2026-08-29: torch, torchvision, torchaudio, triton, xformers,
 #   bitsandbytes and flash-attn were all already COMPLETE from their floors; only CUDA
 #   had holes. Re-run the diff every time rather than trusting that result.
 #
@@ -353,6 +367,27 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   P3 covers per-arch pins differing within one release. Note there are THREE package
 #   names, not two: torch 2.6.0/2.7.x cu118 pin nvidia-cudnn-cu11==9.1.0.70. A regex
 #   looking only for nvidia-cudnn-cu12/cu13 silently misses the cu118 arch.
+#
+#
+# --- P20. A CUDA version in a CI matrix is not proof of a RELEASED toolkit. ---
+#   Grepping a workflow for cuda_version and adding whatever turns up will eventually
+#   pull in a prerelease. bitsandbytes 0.50.1 added:
+#       include:
+#         - os: windows-11-vs2026-arm
+#           cuda_version: "13.4.0"
+#   13.4.0 has no redistrib JSON (404) and is not in the redistribution index, because
+#   install-cuda-woa.ps1 fetches it from packages.nvidia.com/PRERELEASE/cuda/13.4.0/
+#   for a Windows-on-ARM build. There is nothing to source component versions from.
+#   Rules that follow from this:
+#     - The redistribution index (P17) is the authority on which CUDA versions EXIST.
+#       If a version is not enumerable there, it does not go in cuda_metapackages,
+#       no matter what a CI file says.
+#     - Read the matrix STRUCTURE, not just the values. A bare list is the tracked
+#       matrix; an `include:` block bolts on extra one-off combinations that may
+#       target a different OS/arch entirely.
+#     - Check which runner/arch a value belongs to. This program's bitsandbytes CUDA
+#       column tracks the Windows x64 matrix; the 13.4.0 entry is win_arm64 only.
+#   Same discipline as P4 (filter prereleases on PyPI) applied to CUDA itself.
 
 
 
@@ -528,7 +563,7 @@ Torch and CUDA Compatibility
 
 # "Metapackage" component versions per CUDA release version.
 # Row-per-version (was column-per-version; transposed once the list grew past ~12).
-# COMPLETE for every CUDA release from 11.8.0 onward (37 versions as of 2026-08-03).
+# COMPLETE for every CUDA release from 11.8.0 onward (37 versions as of 2026-08-29).
 # Every value was generated directly from the redistribution JSONs and re-verified
 # (406 values, 0 mismatches). Regenerate rather than hand-edit — see the enumerate
 # command in GROUND TRUTH SOURCES.
@@ -618,6 +653,74 @@ VERSION SCOPE POLICY  (what belongs in the program at all)
 # Completeness is now checkable mechanically — see P17.
 
 
+
+*********************************************************
+DEFERRED — EXISTS UPSTREAM, DELIBERATELY NOT TRACKED YET
+*********************************************************
+# VERSION SCOPE POLICY says what belongs in the program. This register is its
+# complement: releases that DO exist upstream, are in scope by version floor, and are
+# still deliberately absent. Without it every audit re-discovers these and re-reports
+# them as findings, and a reader who learns to skim findings will eventually skim a
+# real one.
+#
+# Each entry carries a RE-CHECK TRIGGER: the specific condition that turns it from
+# deferred into actionable. Delete the entry once its trigger fires and it is added.
+#
+# --- triton 3.8.0 (Linux) and triton-windows 3.8.0.post28 ---  deferred 2026-08-29
+#   triton 3.8.0 published to PyPI 2026-08-28 (cp310-cp314, manylinux x86_64/aarch64);
+#   triton-windows 3.8.0.post28 published 2026-08-29 (cp310-cp314).
+#   WHY DEFERRED: triton is not a standalone data structure in this program. It exists
+#   only as the "triton" pin and "triton_compat" list INSIDE torch_python_triton rows.
+#   No RELEASED torch pins 3.8 — torch 2.13.0 pins 3.7.1, and only release/2.14 pins
+#   3.8.0. Adding a 3.8 entry today would create a row unreachable from any torch
+#   version, which is the P18 failure mode in reverse.
+#   RE-CHECK TRIGGER: torch 2.14.0 appears on PyPI / the stable wheel index.
+#   ALREADY-CAPTURED GROUND TRUTH for when that happens (re-verify, do not trust this
+#   blind — per P16 the release branch keeps moving after the tag):
+#     - triton-windows README maps torch 2.14 -> triton 3.8.
+#     - Bundled toolchain, release/3.8.x-windows/cmake/nvidia-toolchain-version.json:
+#         ptxas 12.9.86, ptxas-blackwell 13.3.33, cuobjdump 13.1.80, nvdisasm 13.1.80,
+#         cudacrt 13.1.80, cudart 13.1.80, cupti 12.8.90,
+#         cupti-windows 13.3.35, cupti-blackwell 13.3.35   <-- TWO NEW KEYS in 3.8.x
+#     - P5 AGAIN: the README's summary table says "3.8 | 12.9", which is correct for the
+#       BASE ptxas only. The real bundle is mixed 12.8 / 12.9 / 13.3. Use the JSON.
+#     - P20 AGAIN: that same JSON carries a "windows-arm64" block pulling CUDA 13.4 from
+#       packages.nvidia.com/prerelease/cuda/13.4.0/. Prerelease, not a released toolkit,
+#       absent from the redistribution index. It does NOT go in cuda_metapackages.
+#
+# --- torch 2.14.0 ---  deferred 2026-08-29
+#   RC-only. Wheels exist on the TEST channel (test/cu126, test/cu130, test/cu132);
+#   absent from PyPI and from the stable wheel index.
+#   WHY DEFERRED: the program tracks released wheels. A test-channel wheel can be
+#   rebuilt or withdrawn, and release/2.14 has already reversed a whole CUDA arch once
+#   (13.4 was added, then removed on 2026-08-21).
+#   RE-CHECK TRIGGER: torch 2.14.0 on PyPI / the stable index.
+#   KNOWN STATE of release/2.14 as of 2026-08-29 (PROVISIONAL — re-read on trigger):
+#     CUDA_ARCHES = ["12.6", "13.0", "13.2"], CUDA_STABLE = "13.0"
+#     full versions 12.6.3 / 13.0.3 / 13.2.1; cu129 dropped entirely
+#     cuDNN pins: 12.6 -> 9.10.2.21;  13.0 and 13.2 -> 9.24.0.43
+#     triton pin 3.8.0;  FULL_PYTHON_VERSIONS 3.10-3.15 incl. 3.14t/3.15t
+#     CUDA_ARCHES_NO_WINDOWS = []  (no Windows exclusions — see the new P2 entry)
+#   Stale 2.14.0+cu134 Linux wheels remain on test/cu134 from before the 13.4 revert.
+#   They are NOT evidence that cu134 is coming back. Ignore them.
+#   TWO PARSE RECIPES IN THIS FILE BREAK ON 2.14 — fix them when 2.14 is added:
+#     1. PYTORCH_EXTRA_INSTALL_REQUIREMENTS no longer lists individual nvidia-*-cuXX
+#        packages. Each arch is now one
+#        cuda-toolkit[nvrtc,cudart,cupti,cufft,curand,cusolver,cusparse,cublas,cufile,
+#        nvjitlink,nvtx]==X.Y.Z metapackage, plus cuda-bindings, nvidia-cusparselt,
+#        nvidia-nccl, nvidia-nvshmem. The nvidia-cudnn-cuNN== pin (P3/P19) SURVIVES
+#        unchanged, so the cuDNN parse still works — but anything reading component
+#        versions out of that dict does not.
+#     2. The sympy spec MOVED from setup.py to pyproject.toml. The GROUND TRUTH SOURCES
+#        entry pointing at setup.py will come up empty.
+#
+# --- flash-attention FA4 betas (fa4-v4.0.0.betaNN) ---  deferred, ongoing
+#   Weekly cadence; beta28 published 2026-08-26 while FA2 2.x sits idle.
+#   WHY DEFERRED: prereleases, filtered by P4. Also only 2 assets each, versus 50+ for
+#   an FA2 release — not a compatibility matrix.
+#   RE-CHECK TRIGGER: a NON-prerelease FA4 tag, or FA2 2.x resuming releases.
+
+
 ************
 cuDNN & CUDA
 ************
@@ -643,9 +746,9 @@ cuDNN & CUDA
   that supports them. For older hardware, use cuDNN 8.9.x.
 * Linux driver minimums: >= 525.60.13 (CUDA 12.x build),
   >= 580.65.06 (CUDA 13.x build).
-* Recommended for tuning heuristics: cuDNN 9.24.0 + CUDA 13.3 (Linux).
+* Recommended for tuning heuristics: cuDNN 9.25.1 + CUDA 13.3 (Linux).
   (Verbatim from the support matrix: "For best performance, the recommended
-  configuration is cuDNN 9.24.0 with CUDA 13.3. This is the configuration used
+  configuration is cuDNN 9.25.1 with CUDA 13.3. This is the configuration used
   for tuning heuristics.")
 * Windows-only quirks: side-by-side install dropped in 9.10.0 (must
   manually delete prior C:\Program Files\NVIDIA\CUDNN\v9.x tree before
@@ -656,8 +759,10 @@ cuDNN & CUDA
   win_amd64 wheel on PyPI. See the cuDNN entry in GROUND TRUTH SOURCES.
 
 * taken from https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/support-matrix.html
-* current cuDNN release as of last check: 9.24.0.43 (Jul 2026)
+* current cuDNN release as of last check: 9.25.1.1 (Aug 2026, cu12 and cu13, not yanked)
   NOTE: 9.25.0.15 exists on PyPI but every file is YANKED — not a valid "latest".
+  9.25.1.1 is the fixed republish of that yanked build; 9.24.0.43 was the last good
+  version before it and is what torch 2.14's release branch currently pins.
 
 
 *****************************
@@ -912,7 +1017,7 @@ WINDOWS Flash Attention 2
 # The build-wheels.yml also builds Linux wheels (ubuntu-22.04), but those are separate
 # from the official Dao-AILab Linux FA2 wheels built via publish.yml.
 #
-# LAST VERIFIED: August 3, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
+# LAST VERIFIED: August 29, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
 # no newer kingbri1 release exists. Data below re-confirmed unchanged.
 # Windows FA2 compatibility data may be outdated. The table below was last verified
 # against release assets on the date above. Check kingbri1/flash-attention releases
@@ -956,7 +1061,7 @@ Xformers
 # v0.0.34 pyproject.toml says torch>=2.10, but the published PyPI wheel metadata
 # pins torch==2.10.0 (exact). Only v0.0.35+ truly allows torch>=2.10. See P10.
 #
-# As of 2026-08-03, v0.0.35 is still the latest STABLE release (only 0.0.35.devNNNN
+# As of 2026-08-29, v0.0.35 is still the latest STABLE release (only 0.0.35.devNNNN
 # builds since — see P4). Because it declares torch>=2.10, it upward-covers torch
 # 2.11 / 2.12.x / 2.13.0 with no data change needed. Caveat for users: no xformers
 # wheel has actually been BUILT against 2.12.x or 2.13.0, so those combinations rely
@@ -986,7 +1091,7 @@ Xformers
   marker on that row. It is deliberately KEPT in the program: a user may already have it
   installed and needs to find out it is the bad one. A completeness audit per P17 will
   report 0.0.32 as "tracked but not upstream" — that is expected, not a defect.
-* The xformers list is complete from the 0.0.29.post2 floor onward (audited 2026-08-03).
+* The xformers list is complete from the 0.0.29.post2 floor onward (audited 2026-08-29).
 
 
 **************
@@ -1002,6 +1107,7 @@ Bitsandbytes
 #
 # Python: Wheels are tagged py3 (Python-version agnostic). The supported Python
 # range comes from requires-python in pyproject.toml, not the CI matrix.
+# v0.50.1: requires-python >= 3.10 (classifiers: 3.10-3.14)
 # v0.50.0: requires-python >= 3.10 (classifiers: 3.10-3.14)
 # v0.49.x: requires-python >= 3.10 (classifiers: 3.10-3.14)
 # v0.48.x: requires-python >= 3.9  (classifiers: 3.9-3.13)
@@ -1013,11 +1119,40 @@ Bitsandbytes
 #   ADDED:   13.2.0
 #   KEPT:    11.8.0, 12.1.1, 12.4.1, 12.6.3, 12.8.1, 13.0.2
 # The 12.9.1 drop matters: a user on torch cu129 (2.9.1 / 2.10.0 / 2.11.0 / 2.12.1 /
-# 2.13.0, all Linux) has NO matching bitsandbytes 0.50.0 build and must stay on 0.49.x.
-# v0.50.0 wheels: manylinux_2_24 x86_64/aarch64, win_amd64, win_arm64, macos arm64.
+# 2.13.0, all Linux) has NO matching bitsandbytes 0.50.0/0.50.1 build and must stay
+# on 0.49.x. The gap introduced in 0.50.0 persists in 0.50.1.
+# v0.50.x wheels: manylinux_2_24 x86_64/aarch64, win_amd64, win_arm64, macos arm64.
+#
+# v0.50.1 and v0.50.2 are pure republishes as far as this program is concerned: the
+# cuda_version list is byte-identical across 0.50.0 / 0.50.1 / 0.50.2, and pyproject.toml
+# is byte-identical across all three (sha256 d88a6f7fd14f5226438a2cab4b48ace737b998fc5444
+# bcbb972e6586ec8ce676 for 0.50.1 and 0.50.2). Each row is a straight copy of the 0.50.0
+# row. Three consecutive releases with an unchanged build matrix is the normal pattern
+# here, not a parsing error — re-verify with a diff rather than assuming a copy is wrong.
+#
+# TRAP — do NOT add CUDA 13.4.0 to cuda_metapackages. From 0.50.1 the build-cuda job
+# carries an extra matrix entry that is NOT part of the tracked matrix:
+#     include:
+#       - os: windows-11-vs2026-arm
+#         cuda_version: "13.4.0"
+# That is a Windows-on-ARM (win_arm64) build for NVIDIA RTX/DGX Spark. Per
+# .github/scripts/install-cuda-woa.ps1 it installs a PREVIEW toolkit from
+# packages.nvidia.com/prerelease/cuda/13.4.0/... , not a released one. 13.4.0 is
+# absent from the CUDA redistribution index (404; the index still ends at 13.3.1),
+# so there is no redistrib JSON to source component versions from. See P20.
+# The program's bitsandbytes CUDA column tracks the Windows x64 matrix, which is
+# unchanged.
 
 +------------------+-----------------------------------------------+----------------------+
 | bitsandbytes     | CUDA versions (Windows wheels)                | Python (all rows)    |
++------------------+-----------------------------------------------+----------------------+
+| v0.50.2          | 11.8.0, 12.1.1, 12.4.1, 12.6.3, 12.8.1,       | 3.10, 3.11, 3.12,    |
+|                  | 13.0.2, 13.2.0                                | 3.13, 3.14           |
+|                  | (identical to 0.50.1; still NO 12.9.1)        | (py3 wheel)          |
++------------------+-----------------------------------------------+----------------------+
+| v0.50.1          | 11.8.0, 12.1.1, 12.4.1, 12.6.3, 12.8.1,       | 3.10, 3.11, 3.12,    |
+|                  | 13.0.2, 13.2.0                                | 3.13, 3.14           |
+|                  | (identical to 0.50.0; still NO 12.9.1)        | (py3 wheel)          |
 +------------------+-----------------------------------------------+----------------------+
 | v0.50.0          | 11.8.0, 12.1.1, 12.4.1, 12.6.3, 12.8.1,       | 3.10, 3.11, 3.12,    |
 |                  | 13.0.2, 13.2.0                                | 3.13, 3.14           |

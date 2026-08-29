@@ -297,6 +297,10 @@ class CompatibilityData:
         # CUDA versions from cuda_version matrix in build-cuda job (builds Linux, Windows, ARM).
         # Python: py3 wheels (version-agnostic); supported range from requires-python in pyproject.toml.
         self.bitsandbytes = [
+            {"bnb": "0.50.2", "cuda": ["11.8.0", "12.1.1", "12.4.1", "12.6.3", "12.8.1", "13.0.2", "13.2.0"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
+            {"bnb": "0.50.1", "cuda": ["11.8.0", "12.1.1", "12.4.1", "12.6.3", "12.8.1", "13.0.2", "13.2.0"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
             {"bnb": "0.50.0", "cuda": ["11.8.0", "12.1.1", "12.4.1", "12.6.3", "12.8.1", "13.0.2", "13.2.0"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "assumed_cuda": []},
             {"bnb": "0.49.2", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1", "13.0.2"],
