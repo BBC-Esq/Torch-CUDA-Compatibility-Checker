@@ -22,10 +22,13 @@ GROUND TRUTH SOURCES
 #     https://download.pytorch.org/whl/{MONIKER}/torch/      (403 = wheel absent)
 #   Triton pin for that torch release:
 #     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/.ci/docker/triton_version.txt
-#   Sympy: setup.py is what users actually get (install_requires, e.g. sympy>=1.13.3);
-#   requirements-ci.txt is the CI-pinned exact version (sympy==1.13.3). The program
-#   stores the setup.py spec because it feeds a `pip install` command.
-#     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/setup.py
+#   Sympy: the loose spec a user actually resolves. Through torch 2.13.0 it lived in
+#   setup.py (install_requires); at 2.14.0 it MOVED to pyproject.toml (L340 in v2.14.0)
+#   and setup.py no longer mentions sympy at all. Read pyproject.toml first, fall back
+#   to setup.py for older tags. requirements-ci.txt is the CI-pinned exact version
+#   (sympy==1.13.3); the program stores the loose spec since it feeds a pip install.
+#     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/pyproject.toml   (2.14.0+)
+#     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/setup.py         (<= 2.13.0)
 #     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/.ci/docker/requirements-ci.txt
 #
 # ---- Torchvision / Torchaudio ----
@@ -206,6 +209,14 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #                    12.9 -> nvidia-cudnn-cu12==9.20.0.48   <-- different from 12.6
 #                    13.0 -> nvidia-cudnn-cu13==9.20.0.48
 #                    13.2 -> nvidia-cudnn-cu13==9.20.0.48
+#   STRUCTURE CHANGE at torch 2.14.0: the dict no longer lists individual nvidia-*-cuXX
+#   component packages. Each arch is now ONE cuda-toolkit[...]==X.Y.Z metapackage plus
+#   cuda-bindings, nvidia-cusparselt, nvidia-nccl and nvidia-nvshmem. The
+#   nvidia-cudnn-cuNN== pin SURVIVES unchanged, so this recipe still works - but nothing
+#   else in that dict yields component versions any more.
+#     torch 2.14.0:  12.6 -> nvidia-cudnn-cu12==9.10.2.21
+#                    13.0 -> nvidia-cudnn-cu13==9.24.0.43
+#                    13.2 -> nvidia-cudnn-cu13==9.24.0.43
 #   Note the package NAME also changes (cu12 vs cu13). Parse each arch's block separately.
 #
 #
@@ -388,6 +399,12 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #     - Check which runner/arch a value belongs to. This program's bitsandbytes CUDA
 #       column tracks the Windows x64 matrix; the 13.4.0 entry is win_arm64 only.
 #   Same discipline as P4 (filter prereleases on PyPI) applied to CUDA itself.
+#   OUTCOME (2026-09-09): the discipline held. 13.4.0 STILL 404s and was never
+#   released - the prerelease installer URL was all it ever was. What did ship is
+#   13.4.1, which appeared in the redistribution index on 2026-09-09 and IS now
+#   tracked in cuda_metapackages. Had 13.4.0 been added from the CI file back in
+#   August, the program would have carried a version that does not exist to this
+#   day, and the real release would have been a silent duplicate of a phantom.
 
 
 
@@ -445,6 +462,10 @@ Torch and CUDA Compatibility
 # See the cuDNN & CUDA section below for actual CUDA/cuDNN/platform compatibility.
 +--------+---------+--------+------------+
 | Torch  | Moniker | CUDA   | cuDNN      |
++--------+---------+--------+------------+
+|        | cu132   | 13.2.1 | 9.24.0.43  |
+| 2.14.0 | cu130   | 13.0.3 | 9.24.0.43  |
+|        | cu126   | 12.6.3 | 9.10.2.21  | <-- cu129 dropped: no wheel on any platform
 +--------+---------+--------+------------+
 |        | cu132   | 13.2.1 | 9.20.0.48  |
 | 2.13.0 | cu130   | 13.0.3 | 9.20.0.48  |
@@ -530,6 +551,25 @@ Torch and CUDA Compatibility
 #   - Python 3.13 free-threaded (3.13t) dropped; list is 3.10-3.14 + 3.14t.
 #   - torchvision 0.27.1 pins torch==2.12.1.
 #
+# Torch 2.14.0 changes:
+#   - Wheel matrix: cu126, cu130, cu132. cu129 DROPPED entirely, on every platform.
+#   - cuDNN: cu130 and cu132 -> 9.24.0.43 (2.13.0 used 9.20.0.48); cu126 stays 9.10.2.21.
+#   - Python 3.15 / 3.15t wheels now build for WINDOWS as well as Linux, so the
+#     python_linux_only marker used on the 2.13.0 row must NOT be copied forward.
+#     Verified by HEAD: 2.14.0 cp315 win_amd64 = 200 on all three monikers, 2.13.0 = 403.
+#     PyPI itself still ships only cp310-cp314 + cp314t; cp315 exists solely on
+#     download.pytorch.org. That asymmetry is pre-existing and out of the program's model.
+#   - CUDA_ARCHES_NO_WINDOWS = [] (empty). Resolve the CONSTANT, not the call. See P2.
+#   - Tag v2.14.0 and branch release/2.14 are byte-identical; no P16 drift this time.
+#   - Triton pin 3.8.0; sympy>=1.13.3; torchvision 0.29.0 pins torch==2.14.0.
+#   - PyPI default remains cu130 (CUDA_STABLE = "13.0").
+#   - No torchaudio release; still 2.11.0, maintenance mode since then.
+#   - TRAP: the release notes say "upgrade the CUDA 12.8, 12.9 and 13.x wheels to cuDNN
+#     9.24", but 2.14.0 ships NEITHER cu128 NOR cu129. That line describes work that
+#     landed before those arches were dropped from the release. The build matrix wins;
+#     writing a cu129 row from that sentence would be a false positive.
+#   Source: https://github.com/pytorch/pytorch/releases/tag/v2.14.0
+#
 # Torch 2.13.0 changes:
 #   - Wheel matrix: cu126, cu129 (Linux-only), cu130, cu132.
 #   - cu130 moved to CUDA 13.0.3 (2.12.x used 13.0.2).
@@ -563,9 +603,9 @@ Torch and CUDA Compatibility
 
 # "Metapackage" component versions per CUDA release version.
 # Row-per-version (was column-per-version; transposed once the list grew past ~12).
-# COMPLETE for every CUDA release from 11.8.0 onward (37 versions as of 2026-08-29).
+# COMPLETE for every CUDA release from 11.8.0 onward (38 versions as of 2026-09-09).
 # Every value was generated directly from the redistribution JSONs and re-verified
-# (406 values, 0 mismatches). Regenerate rather than hand-edit — see the enumerate
+# (417 values, 0 mismatches). Regenerate rather than hand-edit — see the enumerate
 # command in GROUND TRUTH SOURCES.
 # There is no 12.7.x — NVIDIA never released it. 11.8.0 shows "-" for nvjitlink
 # because nvJitLink did not exist until CUDA 12.0.
@@ -609,9 +649,14 @@ Torch and CUDA Compatibility
 | 13.2.2 | 13.2.86  | 13.2.86  | 13.2.86  | 13.2.86  | 13.4.1.3   | 12.2.0.57  | 10.4.2.66  | 12.2.0.11  | 12.7.10.12 | 13.2.86  | 13.2.86   |
 | 13.3.0 | 13.3.33  | 13.3.29  | 13.3.33  | 13.3.35  | 13.5.1.27  | 12.3.0.29  | 10.4.3.29  | 12.2.2.18  | 12.8.1.7   | 13.3.29  | 13.3.33   |
 | 13.3.1 | 13.3.33  | 13.3.29  | 13.3.73  | 13.3.75  | 13.6.0.2   | 12.3.0.29  | 10.4.3.29  | 12.2.6.9   | 12.8.2.51  | 13.3.29  | 13.3.33   |
+| 13.4.1 | 13.4.59  | 13.4.49  | 13.4.59  | 13.4.58  | 13.7.0.27  | 12.4.0.34  | 10.4.4.49  | 12.3.2.15  | 12.8.6.49  | 13.4.49  | 13.4.52   |
 +--------+----------+----------+----------+----------+------------+------------+------------+------------+------------+----------+-----------+
 * Obtained from: https://developer.download.nvidia.com/compute/cuda/redist/redistrib_{X.Y.Z}.json
 * Human-readable cross-check: https://docs.nvidia.com/cuda/archive/{X.Y.Z}/cuda-toolkit-release-notes/index.html
+  NOTE: the docs archive LAGS the redist index by days on a fresh release (13.4.1
+  was 404 there on its release day, while 13.3.1 was 200). A 404 here is NOT
+  evidence against a release the redistribution index lists. The redist JSON is the
+  authority; this link is a convenience.
 * Column names map to JSON keys as: nvrtc=cuda_nvrtc, runtime=cuda_cudart, nvcc=cuda_nvcc,
   cupti=cuda_cupti, cublas=libcublas, cufft=libcufft, curand=libcurand,
   cusolver=libcusolver, cusparse=libcusparse, nvtx=cuda_nvtx, nvjitlink=libnvjitlink
@@ -665,54 +710,6 @@ DEFERRED — EXISTS UPSTREAM, DELIBERATELY NOT TRACKED YET
 #
 # Each entry carries a RE-CHECK TRIGGER: the specific condition that turns it from
 # deferred into actionable. Delete the entry once its trigger fires and it is added.
-#
-# --- triton 3.8.0 (Linux) and triton-windows 3.8.0.post28 ---  deferred 2026-08-29
-#   triton 3.8.0 published to PyPI 2026-08-28 (cp310-cp314, manylinux x86_64/aarch64);
-#   triton-windows 3.8.0.post28 published 2026-08-29 (cp310-cp314).
-#   WHY DEFERRED: triton is not a standalone data structure in this program. It exists
-#   only as the "triton" pin and "triton_compat" list INSIDE torch_python_triton rows.
-#   No RELEASED torch pins 3.8 — torch 2.13.0 pins 3.7.1, and only release/2.14 pins
-#   3.8.0. Adding a 3.8 entry today would create a row unreachable from any torch
-#   version, which is the P18 failure mode in reverse.
-#   RE-CHECK TRIGGER: torch 2.14.0 appears on PyPI / the stable wheel index.
-#   ALREADY-CAPTURED GROUND TRUTH for when that happens (re-verify, do not trust this
-#   blind — per P16 the release branch keeps moving after the tag):
-#     - triton-windows README maps torch 2.14 -> triton 3.8.
-#     - Bundled toolchain, release/3.8.x-windows/cmake/nvidia-toolchain-version.json:
-#         ptxas 12.9.86, ptxas-blackwell 13.3.33, cuobjdump 13.1.80, nvdisasm 13.1.80,
-#         cudacrt 13.1.80, cudart 13.1.80, cupti 12.8.90,
-#         cupti-windows 13.3.35, cupti-blackwell 13.3.35   <-- TWO NEW KEYS in 3.8.x
-#     - P5 AGAIN: the README's summary table says "3.8 | 12.9", which is correct for the
-#       BASE ptxas only. The real bundle is mixed 12.8 / 12.9 / 13.3. Use the JSON.
-#     - P20 AGAIN: that same JSON carries a "windows-arm64" block pulling CUDA 13.4 from
-#       packages.nvidia.com/prerelease/cuda/13.4.0/. Prerelease, not a released toolkit,
-#       absent from the redistribution index. It does NOT go in cuda_metapackages.
-#
-# --- torch 2.14.0 ---  deferred 2026-08-29
-#   RC-only. Wheels exist on the TEST channel (test/cu126, test/cu130, test/cu132);
-#   absent from PyPI and from the stable wheel index.
-#   WHY DEFERRED: the program tracks released wheels. A test-channel wheel can be
-#   rebuilt or withdrawn, and release/2.14 has already reversed a whole CUDA arch once
-#   (13.4 was added, then removed on 2026-08-21).
-#   RE-CHECK TRIGGER: torch 2.14.0 on PyPI / the stable index.
-#   KNOWN STATE of release/2.14 as of 2026-08-29 (PROVISIONAL — re-read on trigger):
-#     CUDA_ARCHES = ["12.6", "13.0", "13.2"], CUDA_STABLE = "13.0"
-#     full versions 12.6.3 / 13.0.3 / 13.2.1; cu129 dropped entirely
-#     cuDNN pins: 12.6 -> 9.10.2.21;  13.0 and 13.2 -> 9.24.0.43
-#     triton pin 3.8.0;  FULL_PYTHON_VERSIONS 3.10-3.15 incl. 3.14t/3.15t
-#     CUDA_ARCHES_NO_WINDOWS = []  (no Windows exclusions — see the new P2 entry)
-#   Stale 2.14.0+cu134 Linux wheels remain on test/cu134 from before the 13.4 revert.
-#   They are NOT evidence that cu134 is coming back. Ignore them.
-#   TWO PARSE RECIPES IN THIS FILE BREAK ON 2.14 — fix them when 2.14 is added:
-#     1. PYTORCH_EXTRA_INSTALL_REQUIREMENTS no longer lists individual nvidia-*-cuXX
-#        packages. Each arch is now one
-#        cuda-toolkit[nvrtc,cudart,cupti,cufft,curand,cusolver,cusparse,cublas,cufile,
-#        nvjitlink,nvtx]==X.Y.Z metapackage, plus cuda-bindings, nvidia-cusparselt,
-#        nvidia-nccl, nvidia-nvshmem. The nvidia-cudnn-cuNN== pin (P3/P19) SURVIVES
-#        unchanged, so the cuDNN parse still works — but anything reading component
-#        versions out of that dict does not.
-#     2. The sympy spec MOVED from setup.py to pyproject.toml. The GROUND TRUTH SOURCES
-#        entry pointing at setup.py will come up empty.
 #
 # --- flash-attention FA4 betas (fa4-v4.0.0.betaNN) ---  deferred, ongoing
 #   Weekly cadence; beta28 published 2026-08-26 while FA2 2.x sits idle.
@@ -777,6 +774,9 @@ WINDOWS-SPECIFIC LIMITATIONS
 +--------+--------+-----------------------------------------------+
 | Torch  | Wheel  | Windows Status                                |
 +--------+--------+-----------------------------------------------+
+| 2.14.0 | cu126  | Full support                                  |
+| 2.14.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.14.0 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
 | 2.13.0 | cu126  | Full support                                  |
 | 2.13.0 | cu129  | No Win wheel (12.9 excluded from Win build)   |
 | 2.13.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
@@ -862,6 +862,14 @@ Triton, Torch, and Python
 #             ptxas 12.8.93, cupti 12.8.90  (unchanged from 3.6.x)
 #             ptxas-blackwell 13.1.80, cuobjdump 13.1.80, nvdisasm 13.1.80,
 #             cudacrt 13.1.80, cudart 13.1.80
+#   3.8.x → MIXED 12.8 / 12.9 / 13.3 — bumps ptxas and adds TWO NEW KEYS:
+#             ptxas 12.9.86 (was 12.8.93), cupti 12.8.90 (unchanged from 3.7.x)
+#             ptxas-blackwell 13.3.33 (was 13.1.80)
+#             cuobjdump / nvdisasm / cudacrt / cudart 13.1.80 (unchanged)
+#             cupti-windows 13.3.35, cupti-blackwell 13.3.35   <-- NEW KEYS in 3.8.x
+#           The README summary table reads "3.8 | 12.9", true of the BASE ptxas only.
+#           That JSON also carries a windows-arm64 block pulling CUDA 13.4 from
+#           packages.nvidia.com/prerelease/ — prerelease, see P20, NOT a metapackage.
 #
 #   CORRECTION (2026-08-03): this file previously said "3.7.x → CUDA 12.8 tools
 #   (same bundle as 3.3-3.6)". That was WRONG. It came from the README's coarse
@@ -884,16 +892,38 @@ Triton, Torch, and Python
 +--------------------------+----------------+-------------------------------+
 | Release                  | Compatible     | Notes                         |
 +--------------------------+----------------+-------------------------------+
+| v3.8.0-windows.post28    | torch>=2.14    | README maps torch 2.14 -> 3.8 |
 | v3.7.1-windows.post27    | torch>=2.12    | README maps torch 2.12 AND    |
 | v3.7.0-windows.post26    | torch>=2.12    | 2.13 to triton 3.7            |
 | v3.6.0-windows.postXX    | torch>=2.10    |                               |
-| v3.5.x-windows.postXX    | torch>=2.9     | 3.5.0 adds fp8 on RTX 30xx   |
+| v3.5.x-windows.postXX    | torch>=2.9     | 3.5.0 adds fp8 on RTX 30xx    |
 | v3.4.0-windows.post21    | torch>=2.8     |                               |
-| v3.3.x-windows.postXX    | torch>=2.7     | 3.3.0 adds RTX 50xx support  |
-| v3.2.0-windows.post21    | torch>=2.6     | fp8 on RTX 20xx              |
+| v3.3.x-windows.postXX    | torch>=2.7     | 3.3.0 adds RTX 50xx support   |
+| v3.2.0-windows.post21    | torch>=2.6     | fp8 on RTX 20xx               |
 +--------------------------+----------------+-------------------------------+
-* Turing (GTX 16xx/RTX 20xx) support was dropped in upstream Triton 3.3.
-  If you must use Turing, stick with triton-windows 3.2.x.
+* The "Compatible" column is a FLOOR marking where that series was introduced, NOT
+  an open-ended range. The triton-windows README states each PyTorch minor version
+  "is only guaranteed to work with a specific Triton minor version" and gives a
+  strict 1:1 map: 2.6->3.2, 2.7->3.3, 2.8->3.4, 2.9->3.5, 2.10->3.6, 2.11->3.6,
+  2.12->3.7, 2.13->3.7, 2.14->3.8. Do NOT read "torch>=2.12" as "also works on 2.14";
+  the README's only >= claim is a caveat about forcing 3.2 on an old GPU.
+* Turing (GTX 16xx/RTX 20xx) and Volta (V100) support was dropped in upstream
+  Triton 3.3. If you must use Turing, stick with triton-windows 3.2.x.
+  VERIFIED 2026-09-09 against primary sources, because a third-party wheel index
+  (wildminder/AI-windows-whl) publishes a table claiming SM 7.5 is supported
+  through 3.4.x. That table is wrong. Proof, in order of strength:
+    1. triton-lang/triton PR #5066 'Deprecate MMAv1; fallback to FMA for
+       computeCapability < 80', merge commit 7275ff72, merged 2024-11-05.
+    2. Commit ancestry, not dates: compare v3.2.0...7275ff72 = DIVERGED
+       (ahead_by 53) so it is NOT in 3.2.0; compare v3.3.0...7275ff72 =
+       BEHIND (ahead_by 0) so it IS in 3.3.0. Tag DATES mislead here - v3.2.0
+       was tagged 2025-01-22, after the 2024-11-05 merge, because the 3.2
+       release branch was cut before the PR landed. Check ancestry, not dates.
+    3. triton-windows README (readme branch) GPU table: 'Turing (sm75, GTX 16xx,
+       RTX 20xx) | Yes in Triton 3.2' and 'dropped since Triton 3.3'.
+  NUANCE: 5066 removes the MMAv1 tensor-core path and falls back to FMA below
+  SM 8.0. It is a capability removal the fork maintainer calls 'dropped', not a
+  hard refusal to run.
 
 # Torch hard-pins a specific triton version. This table comes from PyTorch's repo,
 # not from triton-windows. The triton-windows README states that patch versions
@@ -901,6 +931,7 @@ Triton, Torch, and Python
 +-------+----------------------------+-------------+--------+
 | Torch | CUDA                       | Triton Pin  | Sympy  |
 +-------+----------------------------+-------------+--------+
+| 2.14.0| cu126, cu130, cu132        | 3.8.0       | 1.13.3 |
 | 2.13.0| cu126, cu129, cu130, cu132 | 3.7.1       | 1.13.3 |
 | 2.12.1| cu126, cu129, cu130, cu132 | 3.7.1       | 1.13.3 |
 | 2.12.0| cu126, cu130, cu132        | 3.7.0       | 1.13.3 |
@@ -1077,7 +1108,7 @@ Xformers
 | v0.0.33          | 2.9.0  | 2.7.1 - 2.8.4 | 12.6.3, 12.8.1, 13.0.0         |
 | v0.0.32.post2    | 2.8.0  | 2.7.1 - 2.8.2 | 12.6.3, 12.8.1, 12.9.1         |
 | v0.0.32.post1    | 2.8.0  | 2.7.1 - 2.8.2 | 12.6.3, 12.8.1, 12.9.1         |
-| v0.0.32          | 2.8.0  | 2.7.1 - 2.8.2 | 12.6.3, 12.8.1, 12.9.1  * BUG |
+| v0.0.32          | 2.8.0  | 2.7.1 - 2.8.2 | 12.6.3, 12.8.1, 12.9.1  * BUG  |
 | v0.0.31.post1    | 2.7.1  | 2.7.1 - 2.8.0 | 12.6.3, 12.8.0                 |
 | v0.0.31          | 2.7.1  | 2.7.1 - 2.8.0 | 12.6.3, 12.8.0                 |
 | v0.0.30          | 2.7.0  | 2.7.1 - 2.7.4 | 12.6.3, 12.8.0                 |
@@ -1138,8 +1169,11 @@ Bitsandbytes
 # That is a Windows-on-ARM (win_arm64) build for NVIDIA RTX/DGX Spark. Per
 # .github/scripts/install-cuda-woa.ps1 it installs a PREVIEW toolkit from
 # packages.nvidia.com/prerelease/cuda/13.4.0/... , not a released one. 13.4.0 is
-# absent from the CUDA redistribution index (404; the index still ends at 13.3.1),
-# so there is no redistrib JSON to source component versions from. See P20.
+# absent from the CUDA redistribution index (404), so there is no redistrib JSON to
+# source component versions from. See P20.
+# STILL TRUE as of 2026-09-09: 13.4.0 remains a 404. CUDA 13.4.1 DID release and
+# is tracked, but that does not retroactively make 13.4.0 real - do not treat the
+# existence of 13.4.1 as licence to add the 13.4.0 seen in this CI file.
 # The program's bitsandbytes CUDA column tracks the Windows x64 matrix, which is
 # unchanged.
 

@@ -59,6 +59,9 @@ class CompatibilityData:
         )
 
         self.torch_cuda = [
+            {"torch": "2.14.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.14.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.14.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.13.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
             {"torch": "2.13.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
             {"torch": "2.13.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "nowheel"},
@@ -103,6 +106,9 @@ class CompatibilityData:
         # cuda_versions uses major.minor (e.g. "12.4") to match against
         # the full versions in torch_cuda (e.g. "12.4.1") via major.minor extraction
         self.torch_python_triton = [
+            {"torch": "2.14.0", "cuda_versions": ["12.6", "13.0", "13.2"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"],
+             "triton": "3.8.0", "triton_compat": ["3.8.0"], "sympy": ">=1.13.3"},
             {"torch": "2.13.0", "cuda_versions": ["12.6", "12.9", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"], "python_linux_only": ["3.15"],
              "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "sympy": ">=1.13.3"},
@@ -130,6 +136,7 @@ class CompatibilityData:
 
         # NOTE: torchaudio entered maintenance mode after 2.11.0; no 2.12.0 release.
         self.torch_ecosystem = {
+            "2.14.0": {"torchvision": "0.29.0", "torchaudio": "N/A"},
             "2.13.0": {"torchvision": "0.28.0", "torchaudio": "N/A"},
             "2.12.1": {"torchvision": "0.27.1", "torchaudio": "N/A"},
             "2.12.0": {"torchvision": "0.27.0", "torchaudio": "N/A"},
@@ -541,6 +548,12 @@ class CompatibilityData:
                 "cuda-cupti": "13.3.75", "cublas": "13.6.0.2", "cufft": "12.3.0.29",
                 "curand": "10.4.3.29", "cusolver": "12.2.6.9", "cusparse": "12.8.2.51",
                 "nvtx": "13.3.29", "nvjitlink": "13.3.33"
+            },
+            "13.4.1": {
+                "cuda-nvrtc": "13.4.59", "cuda-runtime": "13.4.49", "cuda-nvcc": "13.4.59",
+                "cuda-cupti": "13.4.58", "cublas": "13.7.0.27", "cufft": "12.4.0.34",
+                "curand": "10.4.4.49", "cusolver": "12.3.2.15", "cusparse": "12.8.6.49",
+                "nvtx": "13.4.49", "nvjitlink": "13.4.52"
             }
         }
 

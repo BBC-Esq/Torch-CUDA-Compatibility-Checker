@@ -21,6 +21,9 @@ user_guide.html
 # Ground truth reference scripts
 ground-truth/
 
+# Forked reference data (community Windows wheel index; not our data)
+AI-windows-whl/
+
 # Installer
 installer/
 installer-output/
