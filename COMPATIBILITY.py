@@ -712,10 +712,18 @@ DEFERRED — EXISTS UPSTREAM, DELIBERATELY NOT TRACKED YET
 # deferred into actionable. Delete the entry once its trigger fires and it is added.
 #
 # --- flash-attention FA4 betas (fa4-v4.0.0.betaNN) ---  deferred, ongoing
-#   Weekly cadence; beta28 published 2026-08-26 while FA2 2.x sits idle.
+#   Weekly cadence; beta30 published 2026-09-09 while FA2 2.x sits idle.
 #   WHY DEFERRED: prereleases, filtered by P4. Also only 2 assets each, versus 50+ for
 #   an FA2 release — not a compatibility matrix.
-#   RE-CHECK TRIGGER: a NON-prerelease FA4 tag, or FA2 2.x resuming releases.
+#   RE-CHECK TRIGGER: an FA4 release whose VERSION carries no beta/rc/alpha segment
+#   (a plain fa4-v4.0.0 tag, or a flash-attn-4 PyPI version that is not a PEP 440
+#   prerelease and not fully yanked), or FA2 2.x resuming releases.
+#   JUDGE BY THE VERSION STRING, NOT BY FLAGS. Two decoys already look like the trigger:
+#     - GitHub marks fa4-v4.0.0.beta0, beta1, beta2 and beta4 (all 2026-03-05) as
+#       prerelease:false even though they are betas; beta5 onward are flagged true.
+#       There is no beta3 release or tag.
+#     - FA4 ships on PyPI as flash-attn-4, whose only non-prerelease version, 0.0.1,
+#       is a yanked ~1 KB placeholder from 2026-02-09. P4's yank filter excludes it.
 
 
 ************
@@ -727,7 +735,7 @@ cuDNN & CUDA
 +-------------------+---------------------------+----------------------+
 | cuDNN Package     | CUDA Toolkit              | Windows Support      |
 +-------------------+---------------------------+----------------------+
-| 9.x for CUDA 13.x | 13.0-13.4                 | NOT SUPPORTED [1]    |
+| 9.x for CUDA 13.x | 13.0-13.4 [4]             | NOT SUPPORTED [1]    |
 | 9.x for CUDA 12.x | 12.0-12.6, 12.8, 12.9 [2] | Driver >= 527.41     |
 |   + Blackwell GPU | 12.8, 12.9                | Driver >= 570.65 [3] |
 +-------------------+---------------------------+----------------------+
@@ -1131,10 +1139,18 @@ Xformers
 * Torch support: torch_version in wheels.yml build matrix (tagged release)
 * FA2 support: FLASH_VER_MIN / FLASH_VER_LAST in xformers/ops/fmha/flash.py (tagged release)
 * CUDA monikers: CU_VERSIONS in wheels.yml; versions shown are torch's CUDA for each moniker
-* v0.0.32 is YANKED on PyPI (every file), which independently corroborates the "BUG"
+* v0.0.32 has been DELETED from PyPI, not merely yanked (checked 2026-09-11):
+  /pypi/xformers/0.0.32/json returns 404, and the version is absent from both the
+  project JSON and the simple index. A yanked release still returns 200 with
+  yanked: true (cuDNN 9.25.0.15 is a live example). Only 0.0.32.post1 and .post2
+  remain, on PyPI and on the PyTorch wheel index alike. This note used to say "YANKED";
+  whether 0.0.32 was yanked first and deleted later cannot be established, because the
+  Wayback Machine has no capture of it. Either way its removal corroborates the "BUG"
   marker on that row. It is deliberately KEPT in the program: a user may already have it
-  installed and needs to find out it is the bad one. A completeness audit per P17 will
-  report 0.0.32 as "tracked but not upstream" — that is expected, not a defect.
+  installed and needs to find out it is the bad one. No user impact: the install-command
+  builder emits the first (newest) version in a cell, 0.0.32.post2, from the PyTorch
+  index. A completeness audit per P17 will report 0.0.32 as "tracked but not upstream"
+  — that is expected, not a defect.
 * The xformers list is complete from the 0.0.29.post2 floor onward (audited 2026-08-29).
 
 
