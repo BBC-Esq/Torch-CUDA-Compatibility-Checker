@@ -727,7 +727,7 @@ cuDNN & CUDA
 +-------------------+---------------------------+----------------------+
 | cuDNN Package     | CUDA Toolkit              | Windows Support      |
 +-------------------+---------------------------+----------------------+
-| 9.x for CUDA 13.x | 13.0, 13.1, 13.2, 13.3    | NOT SUPPORTED [1]    |
+| 9.x for CUDA 13.x | 13.0-13.4                 | NOT SUPPORTED [1]    |
 | 9.x for CUDA 12.x | 12.0-12.6, 12.8, 12.9 [2] | Driver >= 527.41     |
 |   + Blackwell GPU | 12.8, 12.9                | Driver >= 570.65 [3] |
 +-------------------+---------------------------+----------------------+
@@ -737,15 +737,19 @@ cuDNN & CUDA
 [2] CUDA 12.7 was never released by Nvidia, hence the gap.
 [3] Blackwell (cc 10.0, 12.0) requires CUDA >= 12.8, Linux driver
     >= 570.26, Windows driver >= 570.65.
+[4] Rubin (cc 10.7) is supported from cuDNN 9.26.0 and requires CUDA >= 13.4
+    and Linux driver >= 615.71.09. CUDA 13.x build only, so Linux-only.
 
 * GPU floor: cuDNN 9.11+ requires Turing (cc 7.5). Volta, Pascal, and
   Maxwell were removed in 9.11.0 (Jul 2025); 9.10.2 is the last 9.x
   that supports them. For older hardware, use cuDNN 8.9.x.
 * Linux driver minimums: >= 525.60.13 (CUDA 12.x build),
-  >= 580.65.06 (CUDA 13.x build).
-* Recommended for tuning heuristics: cuDNN 9.25.1 + CUDA 13.3 (Linux).
+  >= 615.71.09 (CUDA 13.x build, as of cuDNN 9.26.0; it was >= 580.65.06
+  through 9.25.1). NVIDIA gives ONE value for the whole 13.0-13.4 row, so it
+  does not say whether a 580-series driver still works for 13.0-13.3.
+* Recommended for tuning heuristics: cuDNN 9.26.0 + CUDA 13.4 (Linux).
   (Verbatim from the support matrix: "For best performance, the recommended
-  configuration is cuDNN 9.25.1 with CUDA 13.3. This is the configuration used
+  configuration is cuDNN 9.26.0 with CUDA 13.4. This is the configuration used
   for tuning heuristics.")
 * Windows-only quirks: side-by-side install dropped in 9.10.0 (must
   manually delete prior C:\Program Files\NVIDIA\CUDNN\v9.x tree before
@@ -756,10 +760,19 @@ cuDNN & CUDA
   win_amd64 wheel on PyPI. See the cuDNN entry in GROUND TRUTH SOURCES.
 
 * taken from https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/support-matrix.html
-* current cuDNN release as of last check: 9.25.1.1 (Aug 2026, cu12 and cu13, not yanked)
+  Every release is also archived at a versioned URL:
+    https://docs.nvidia.com/deeplearning/cudnn/backend/v{X.Y.Z}/reference/support-matrix.html
+  X.Y.Z is the THREE-part docs version (v9.25.1), NOT the four-part PyPI version
+  (9.25.1.1). A PyPI version in that slot 404s, which does not mean the archive is
+  missing. When updating this section, diff "latest" cell by cell against the
+  PREVIOUS release's archived page, not against what this file says. That proves
+  which values changed in the new release and separates a real change from an old
+  value that was misread. Parse the table <td> by <td>: flattened to text, the
+  static-linking and compute-capability columns read like extra CUDA toolkit versions.
+* current cuDNN release as of last check: 9.26.0.51 (2026-09-10, cu12 and cu13, not yanked)
   NOTE: 9.25.0.15 exists on PyPI but every file is YANKED — not a valid "latest".
-  9.25.1.1 is the fixed republish of that yanked build; 9.24.0.43 was the last good
-  version before it and is what torch 2.14's release branch currently pins.
+  9.25.1.1 was the fixed republish of that yanked build. torch 2.14.0 pins
+  9.24.0.43 for cu130/cu132 and 9.10.2.21 for cu126.
 
 
 *****************************
