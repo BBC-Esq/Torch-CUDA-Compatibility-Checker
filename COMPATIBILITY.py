@@ -165,6 +165,17 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   IMPORTANT: download.pytorch.org is S3-backed and returns **403** (not 404) for a
 #   nonexistent wheel. Treat 403 as "does not exist". 200 means it shipped.
 #   Note the "%2B" — the "+" in the local version must be URL-encoded.
+#   Two ways this check lies, both hit in 2026-09:
+#   - A 403 means "absent" only if the filename was right. Linux wheels are tagged
+#     manylinux_2_28_x86_64, never linux_x86_64, and the naive tag 403s on a wheel that
+#     exists (2.13.0 cu129: linux_x86_64 = 403, manylinux_2_28_x86_64 = 200). Before
+#     concluding absence, confirm the same filename pattern returns 200 on a moniker
+#     that does ship, or list the index and read the real names.
+#   - A moniker's INDEX PAGE can return 200 with no wheels for it. From 2026-09-17,
+#     download.pytorch.org/whl/cu134/torch/ served a stale generic listing (98 legacy
+#     wheels, newest torch 2.0.1) with zero "%2Bcu134" entries, while never-used
+#     monikers (cu133, cu199) returned 403. The page existing proves nothing: grep it
+#     for "%2Bcu{moniker}". No torch cu134 wheel existed as of 2026-09-24.
 #
 #
 # --- P2. The Windows arch-exclusion idiom CHANGED between releases. ---
@@ -603,9 +614,9 @@ Torch and CUDA Compatibility
 
 # "Metapackage" component versions per CUDA release version.
 # Row-per-version (was column-per-version; transposed once the list grew past ~12).
-# COMPLETE for every CUDA release from 11.8.0 onward (38 versions as of 2026-09-09).
+# COMPLETE for every CUDA release from 11.8.0 onward (39 versions as of 2026-09-24).
 # Every value was generated directly from the redistribution JSONs and re-verified
-# (417 values, 0 mismatches). Regenerate rather than hand-edit — see the enumerate
+# (428 values, 0 mismatches). Regenerate rather than hand-edit — see the enumerate
 # command in GROUND TRUTH SOURCES.
 # There is no 12.7.x — NVIDIA never released it. 11.8.0 shows "-" for nvjitlink
 # because nvJitLink did not exist until CUDA 12.0.
@@ -650,6 +661,7 @@ Torch and CUDA Compatibility
 | 13.3.0 | 13.3.33  | 13.3.29  | 13.3.33  | 13.3.35  | 13.5.1.27  | 12.3.0.29  | 10.4.3.29  | 12.2.2.18  | 12.8.1.7   | 13.3.29  | 13.3.33   |
 | 13.3.1 | 13.3.33  | 13.3.29  | 13.3.73  | 13.3.75  | 13.6.0.2   | 12.3.0.29  | 10.4.3.29  | 12.2.6.9   | 12.8.2.51  | 13.3.29  | 13.3.33   |
 | 13.4.1 | 13.4.59  | 13.4.49  | 13.4.59  | 13.4.58  | 13.7.0.27  | 12.4.0.34  | 10.4.4.49  | 12.3.2.15  | 12.8.6.49  | 13.4.49  | 13.4.52   |
+| 13.4.2 | 13.4.92  | 13.4.92  | 13.4.92  | 13.4.92  | 13.8.0.4   | 12.4.0.43  | 10.4.4.72  | 12.3.4.7   | 12.8.6.72  | 13.4.92  | 13.4.92   |
 +--------+----------+----------+----------+----------+------------+------------+------------+------------+------------+----------+-----------+
 * Obtained from: https://developer.download.nvidia.com/compute/cuda/redist/redistrib_{X.Y.Z}.json
 * Human-readable cross-check: https://docs.nvidia.com/cuda/archive/{X.Y.Z}/cuda-toolkit-release-notes/index.html
