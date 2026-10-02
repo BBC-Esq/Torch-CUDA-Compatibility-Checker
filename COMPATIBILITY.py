@@ -474,6 +474,10 @@ Torch and CUDA Compatibility
 +--------+---------+--------+------------+
 | Torch  | Moniker | CUDA   | cuDNN      |
 +--------+---------+--------+------------+
+|        | cu132   | 13.2.2 | 9.24.0.43  | <-- 13.2.2 (2.14.0 used 13.2.1)
+| 2.14.1 | cu130   | 13.0.3 | 9.24.0.43  |
+|        | cu126   | 12.6.3 | 9.10.2.21  |
++--------+---------+--------+------------+
 |        | cu132   | 13.2.1 | 9.24.0.43  |
 | 2.14.0 | cu130   | 13.0.3 | 9.24.0.43  |
 |        | cu126   | 12.6.3 | 9.10.2.21  | <-- cu129 dropped: no wheel on any platform
@@ -561,6 +565,24 @@ Torch and CUDA Compatibility
 #   - Triton pin bumped 3.7.0 -> 3.7.1.
 #   - Python 3.13 free-threaded (3.13t) dropped; list is 3.10-3.14 + 3.14t.
 #   - torchvision 0.27.1 pins torch==2.12.1.
+#
+# Torch 2.14.1 changes (a patch release that is NEARLY, but not exactly, a copy of 2.14.0):
+#   - The ONLY build-matrix delta vs v2.14.0 is CUDA_ARCHES_FULL_VERSION["13.2"]: 13.2.1 ->
+#     13.2.2, plus the matching cuda-toolkit==13.2.2 pin. The cu132 row's CUDA must be
+#     13.2.2. Copying the 2.14.0 row would leave 13.2.1, and P18 cannot catch that: both
+#     share major.minor 13.2. Only a tag-to-tag diff of the build matrix does.
+#   - Otherwise identical to v2.14.0: CUDA_ARCHES 12.6/13.0/13.2, CUDA_STABLE 13.0,
+#     CUDA_ARCHES_NO_WINDOWS = [], FULL_PYTHON_VERSIONS 3.10-3.15 (+3.14t/3.15t), cuDNN
+#     9.10.2.21 (cu126) / 9.24.0.43 (cu130, cu132), triton 3.8.0, sympy>=1.13.3.
+#   - Tag v2.14.1 and branch release/2.14 are byte-identical; no P16 drift.
+#   - The index listings carry cp310-cp315 for win_amd64 AND manylinux on all three
+#     monikers, so python_linux_only must NOT be set, same as 2.14.0. No 2.14.1 wheel
+#     exists on cu128 or cu129, so the 2.14.0 release-note trap below still applies.
+#   - torchvision 0.29.1 pins torch>=2.14.0, NOT ==2.14.1. Every earlier torchvision in
+#     this file pinned its torch exactly, so read the pin rather than infer it. Checked on
+#     PyPI and on the cu126/cu132 index wheels, which carry the same >= pin.
+#   - No torchaudio release; still 2.11.0.
+#   Source: https://github.com/pytorch/pytorch/releases/tag/v2.14.1
 #
 # Torch 2.14.0 changes:
 #   - Wheel matrix: cu126, cu130, cu132. cu129 DROPPED entirely, on every platform.
@@ -676,8 +698,8 @@ Torch and CUDA Compatibility
   cublas 13.1.0.3 -> 13.1.1.3; 12.8.1 -> 12.8.2 changes only cublas 12.8.4.1 -> 12.8.5.5).
   Do not assume a new patch version is a no-op, and do not assume it changed everything.
 * Torch wheel refs (the subset that strictly must be present): 11.8.0, 12.4.1, 12.6.3,
-  12.8.0, 12.8.1, 12.9.1, 13.0.0, 13.0.2, 13.0.3, 13.2.1. Everything else is tracked
-  because the table is intentionally COMPLETE from the floor onward.
+  12.8.0, 12.8.1, 12.9.1, 13.0.0, 13.0.2, 13.0.3, 13.2.1, 13.2.2. Everything else is
+  tracked because the table is intentionally COMPLETE from the floor onward.
 
 
 
@@ -767,10 +789,15 @@ cuDNN & CUDA
   >= 615.71.09 (CUDA 13.x build, as of cuDNN 9.26.0; it was >= 580.65.06
   through 9.25.1). NVIDIA gives ONE value for the whole 13.0-13.4 row, so it
   does not say whether a 580-series driver still works for 13.0-13.3.
-* Recommended for tuning heuristics: cuDNN 9.26.0 + CUDA 13.4 (Linux).
+* Recommended for tuning heuristics: cuDNN 9.27.0 + CUDA 13.4.1 (Linux).
   (Verbatim from the support matrix: "For best performance, the recommended
-  configuration is cuDNN 9.26.0 with CUDA 13.4. This is the configuration used
+  configuration is cuDNN 9.27.0 with CUDA 13.4.1. This is the configuration used
   for tuning heuristics.")
+* 9.27.0 names 13.4.1 twice in the 13.x row: in the toolkit list ("13.4.1 13.4 13.3
+  13.2 13.1 13.0") and as the sole entry under "Supports static linking?". That is a
+  patch inside the 13.0-13.4 range above, so the range does not change, and the
+  driver minimums and footnote [4] are unchanged from 9.26.0. Flattened to text, the
+  static-linking 13.4.1 reads like a repeated toolkit: parse the table <td> by <td>.
 * Windows-only quirks: side-by-side install dropped in 9.10.0 (must
   manually delete prior C:\Program Files\NVIDIA\CUDNN\v9.x tree before
   upgrading); lib path moved from lib\ to lib\x64\ in 9.x; no static
@@ -789,10 +816,10 @@ cuDNN & CUDA
   which values changed in the new release and separates a real change from an old
   value that was misread. Parse the table <td> by <td>: flattened to text, the
   static-linking and compute-capability columns read like extra CUDA toolkit versions.
-* current cuDNN release as of last check: 9.26.0.51 (2026-09-10, cu12 and cu13, not yanked)
+* current cuDNN release as of last check: 9.27.0.42 (2026-09-29, cu12 and cu13, not yanked)
   NOTE: 9.25.0.15 exists on PyPI but every file is YANKED — not a valid "latest".
-  9.25.1.1 was the fixed republish of that yanked build. torch 2.14.0 pins
-  9.24.0.43 for cu130/cu132 and 9.10.2.21 for cu126.
+  9.25.1.1 was the fixed republish of that yanked build. torch 2.14.0 and 2.14.1
+  both pin 9.24.0.43 for cu130/cu132 and 9.10.2.21 for cu126.
 
 
 *****************************
@@ -807,6 +834,9 @@ WINDOWS-SPECIFIC LIMITATIONS
 +--------+--------+-----------------------------------------------+
 | Torch  | Wheel  | Windows Status                                |
 +--------+--------+-----------------------------------------------+
+| 2.14.1 | cu126  | Full support                                  |
+| 2.14.1 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.14.1 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
 | 2.14.0 | cu126  | Full support                                  |
 | 2.14.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
 | 2.14.0 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
@@ -980,6 +1010,7 @@ Triton, Torch, and Python
 +-------+----------------------------+-------------+--------+
 | Torch | CUDA                       | Triton Pin  | Sympy  |
 +-------+----------------------------+-------------+--------+
+| 2.14.1| cu126, cu130, cu132        | 3.8.0       | 1.13.3 |
 | 2.14.0| cu126, cu130, cu132        | 3.8.0       | 1.13.3 |
 | 2.13.0| cu126, cu129, cu130, cu132 | 3.7.1       | 1.13.3 |
 | 2.12.1| cu126, cu129, cu130, cu132 | 3.7.1       | 1.13.3 |
@@ -1097,7 +1128,7 @@ WINDOWS Flash Attention 2
 # The build-wheels.yml also builds Linux wheels (ubuntu-22.04), but those are separate
 # from the official Dao-AILab Linux FA2 wheels built via publish.yml.
 #
-# LAST VERIFIED: August 29, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
+# LAST VERIFIED: October 1, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
 # no newer kingbri1 release exists. Data below re-confirmed unchanged.
 # Windows FA2 compatibility data may be outdated. The table below was last verified
 # against release assets on the date above. Check kingbri1/flash-attention releases

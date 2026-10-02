@@ -59,6 +59,9 @@ class CompatibilityData:
         )
 
         self.torch_cuda = [
+            {"torch": "2.14.1", "wheel": "cu132", "cuda": "13.2.2", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.14.1", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.14.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.14.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
             {"torch": "2.14.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
             {"torch": "2.14.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
@@ -106,6 +109,9 @@ class CompatibilityData:
         # cuda_versions uses major.minor (e.g. "12.4") to match against
         # the full versions in torch_cuda (e.g. "12.4.1") via major.minor extraction
         self.torch_python_triton = [
+            {"torch": "2.14.1", "cuda_versions": ["12.6", "13.0", "13.2"],
+             "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"],
+             "triton": "3.8.0", "triton_compat": ["3.8.0"], "sympy": ">=1.13.3"},
             {"torch": "2.14.0", "cuda_versions": ["12.6", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"],
              "triton": "3.8.0", "triton_compat": ["3.8.0"], "sympy": ">=1.13.3"},
@@ -136,6 +142,7 @@ class CompatibilityData:
 
         # NOTE: torchaudio entered maintenance mode after 2.11.0; no 2.12.0 release.
         self.torch_ecosystem = {
+            "2.14.1": {"torchvision": "0.29.1", "torchaudio": "N/A"},
             "2.14.0": {"torchvision": "0.29.0", "torchaudio": "N/A"},
             "2.13.0": {"torchvision": "0.28.0", "torchaudio": "N/A"},
             "2.12.1": {"torchvision": "0.27.1", "torchaudio": "N/A"},
