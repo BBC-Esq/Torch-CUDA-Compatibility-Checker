@@ -884,6 +884,19 @@ Triton, Torch, and Python
 #   - The JSON defines which CUDA tools are shipped inside the wheel.
 #   The JSON lives on the release branch (e.g. release/3.2.x-windows) and applies to ALL
 #   post versions built from that branch, including PyPI-only versions without GitHub tags.
+#   TRAP: the README's own "nvidia-toolchain-version.json" link (under its ptxas table)
+#   points at UPSTREAM triton-lang/triton @ main, not at a triton-windows release branch.
+#   It returns 200 with the same key names but describes unreleased upstream state. On
+#   2026-10-01 it read ptxas-blackwell 13.4.59 (the shipped 3.8.x wheels: 13.3.33) and had
+#   no cupti-windows key and no windows-arm64 block. Following it would "correct" the 3.8.x
+#   values below to wrong ones. Read triton-lang/triton-windows @ release/{X.Y}.x-windows
+#   and ignore the README's link. The link is not new: it pointed at upstream main on
+#   2026-05-27 already.
+#   The triton-windows copies in ground-truth/ date from 2026-04-03. They record what
+#   earlier claims were based on; they are NOT the baseline for spotting change. Compare
+#   the live README against what THIS file claims instead. On 2026-09-29 an audit diffed
+#   against the snapshot and reported the README's 2.12/2.13/2.14 rows, its Volta row and
+#   the link above as new. All were live by 2026-09-09, and the notes below came from them.
 #
 # BUNDLED CUDA (from nvidia-toolchain-version.json on release/{X.Y}.x-windows):
 #   3.2.x → CUDA 12.4 tools (ptxas 12.4.99, cudart 12.4.99)
@@ -925,7 +938,7 @@ Triton, Torch, and Python
 +--------------------------+----------------+-------------------------------+
 | Release                  | Compatible     | Notes                         |
 +--------------------------+----------------+-------------------------------+
-| v3.8.0-windows.post28    | torch>=2.14    | README maps torch 2.14 -> 3.8 |
+| v3.8.0-windows.post29    | torch>=2.14    | README maps torch 2.14 -> 3.8 |
 | v3.7.1-windows.post27    | torch>=2.12    | README maps torch 2.12 AND    |
 | v3.7.0-windows.post26    | torch>=2.12    | 2.13 to triton 3.7            |
 | v3.6.0-windows.postXX    | torch>=2.10    |                               |
@@ -952,8 +965,11 @@ Triton, Torch, and Python
        BEHIND (ahead_by 0) so it IS in 3.3.0. Tag DATES mislead here - v3.2.0
        was tagged 2025-01-22, after the 2024-11-05 merge, because the 3.2
        release branch was cut before the PR landed. Check ancestry, not dates.
-    3. triton-windows README (readme branch) GPU table: 'Turing (sm75, GTX 16xx,
-       RTX 20xx) | Yes in Triton 3.2' and 'dropped since Triton 3.3'.
+    3. triton-windows README (readme branch) GPU table, which gives Volta its own
+       row: 'Turing (sm75, GTX 16xx, RTX 20xx) | Yes in Triton 3.2', 'Volta (sm70,
+       V100) | Yes in Triton 3.2', and 'Support for Volta and Turing was dropped
+       since Triton 3.3'. All present in the live README on 2026-09-09; re-read
+       2026-10-01, unchanged.
   NUANCE: 5066 removes the MMAv1 tensor-core path and falls back to FMA below
   SM 8.0. It is a capability removal the fork maintainer calls 'dropped', not a
   hard refusal to run.
