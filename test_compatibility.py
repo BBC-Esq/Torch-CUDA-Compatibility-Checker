@@ -111,13 +111,13 @@ class CompatibilityData:
         self.torch_python_triton = [
             {"torch": "2.14.1", "cuda_versions": ["12.6", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"],
-             "triton": "3.8.0", "triton_compat": ["3.8.0"], "sympy": ">=1.13.3"},
+             "triton": "3.8.0", "triton_compat": ["3.8.0"], "triton_no_python": ["3.15"], "sympy": ">=1.13.3"},
             {"torch": "2.14.0", "cuda_versions": ["12.6", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"],
-             "triton": "3.8.0", "triton_compat": ["3.8.0"], "sympy": ">=1.13.3"},
+             "triton": "3.8.0", "triton_compat": ["3.8.0"], "triton_no_python": ["3.15"], "sympy": ">=1.13.3"},
             {"torch": "2.13.0", "cuda_versions": ["12.6", "12.9", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"], "python_linux_only": ["3.15"],
-             "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "sympy": ">=1.13.3"},
+             "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "triton_no_python": ["3.15"], "sympy": ">=1.13.3"},
             {"torch": "2.12.1", "cuda_versions": ["12.6", "12.9", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "sympy": ">=1.13.3"},
             {"torch": "2.12.0", "cuda_versions": ["12.6", "13.0", "13.2"],
@@ -1050,6 +1050,9 @@ class CompatibilityChecker(QMainWindow):
             if pt["torch"] == torch_ver:
                 triton_pin = pt["triton"]
                 sympy_ver = pt["sympy"]
+                # No triton/triton-windows wheel exists for this Python, so omit Triton.
+                if python_ver in pt.get("triton_no_python", []):
+                    triton_pin = None
                 break
 
         lines = []
@@ -1235,6 +1238,8 @@ class CompatibilityChecker(QMainWindow):
                         continue
                     if platform == "windows" and py_ver in pt.get("python_linux_only", []):
                         continue
+                    if triton_sel and py_ver in pt.get("triton_no_python", []):
+                        continue
 
                     # FA2 matching depends on platform:
                     # - Windows: exact torch + python + CUDA match against kingbri1 wheels.
@@ -1332,6 +1337,9 @@ class CompatibilityChecker(QMainWindow):
                         triton_display = f"{', '.join(triton_compat_list)} (pin: {triton_pin})"
                     else:
                         triton_display = triton_pin
+                    triton_no_wheel = py_ver in pt.get("triton_no_python", [])
+                    if triton_no_wheel:
+                        triton_display = "N/A"
 
                     cuda_exact = (cuda_sel is None or tc["cuda"] == cuda_sel)
 
@@ -1347,6 +1355,7 @@ class CompatibilityChecker(QMainWindow):
                         "out_of_matrix": tc.get("out_of_matrix", False),
                         "cudnn": tc["cudnn"],
                         "triton": triton_display,
+                        "triton_no_wheel": triton_no_wheel,
                         "fa2": ", ".join(sorted(fa2_versions, reverse=True)),
                         "fa2_has_assumed": fa2_has_assumed,
                         "xformers": ", ".join(xf_versions),
@@ -1418,7 +1427,13 @@ class CompatibilityChecker(QMainWindow):
                     f"determined by your CUDA version, not torch.")
                 self.compat_table.setItem(i, 6, cudnn_item)
 
-                self.compat_table.setItem(i, 7, make_item(combo["triton"]))
+                triton_item = make_item(combo["triton"])
+                if combo["triton_no_wheel"]:
+                    triton_item.setToolTip(
+                        f"No triton or triton-windows wheel exists for Python {combo['python']},\n"
+                        f"so the install commands leave Triton out. PyTorch itself installs\n"
+                        f"and runs; torch.compile on GPU needs Triton, so it will not work.")
+                self.compat_table.setItem(i, 7, triton_item)
 
                 fa2_item = make_item(combo["fa2"])
                 if combo["fa2_has_assumed"]:

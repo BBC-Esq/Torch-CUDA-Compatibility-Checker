@@ -448,6 +448,31 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                      which is torch's exact hard pin.
 #   python_linux_only  Python versions present ONLY in Linux wheels (see P14). Filtered
 #                      out when the platform toggle is set to Windows.
+#   triton_no_python   OPTIONAL. Pythons the row's torch supports but its pinned triton
+#                      does not: no triton (Linux) or triton-windows (Windows) wheel
+#                      exists for them, though torch itself installs there. The Triton
+#                      cell shows "N/A" with a tooltip, a selected Triton filter drops
+#                      those rows, and the install commands omit the Triton block.
+#                      Set to ["3.15"] on 2.14.1, 2.14.0 and 2.13.0 (2026-10-02).
+#                      GROUND TRUTH differs by platform (see P14):
+#                        Linux    torch's own wheel metadata via PEP 658 (append
+#                                 .metadata to a wheel URL from the
+#                                 download.pytorch.org/whl/{moniker}/torch/ listing):
+#                                 2.13.0 triton==3.7.1 and 2.14.x triton~=3.8.0, each
+#                                 with the marker python_version < "3.15". 2.12.1 has
+#                                 no such marker, and no 3.15 wheels.
+#                        Windows  torch wheels declare no triton dependency at all, so
+#                                 the evidence is triton-windows' own wheel tags:
+#                                 cp310-cp314 in every 3.7.x and 3.8.x release.
+#                      Neither package has ever shipped a cp315, abi3 or py3-none wheel,
+#                      nor an sdist pip could build from (checked 2026-10-02).
+#                      RE-CHECK TRIGGER: any triton or triton-windows release with a
+#                      wheel that installs on 3.15 (a cp315 or abi3 tag), and every new
+#                      torch release (re-read its marker). triton-windows' main-windows
+#                      branch already carries ABI3 build work (commit 445ba28a), so abi3
+#                      is the likely first change. If only one platform gains a 3.15
+#                      wheel, this single list goes wrong for the other and has to
+#                      become per-platform.
 #
 # flash_attention_linux[] :
 #   cuda       CUDA MAJOR ("12"/"13") of the torch wheel this FA2 wheel pairs with.
