@@ -1470,13 +1470,16 @@ class CompatibilityChecker(QMainWindow):
                 self.compat_table.setItem(i, 10, bnb_item)
 
                 windows_item = make_item(combo["windows"])
-                if combo["windows"] == "Linux-only: no wheel":
+                if combo["windows"].startswith("Linux-only"):
                     windows_item.setBackground(QColor(240, 130, 130))
                     windows_item.setForeground(QColor(0, 0, 0))
-                    windows_item.setToolTip(
-                        "PyTorch does not build a Windows wheel for this CUDA version at all\n"
-                        "(CUDA 12.9 is excluded from the Windows build from torch 2.9.1 onward).\n"
-                        "The download does not exist.")
+                    if combo["windows"] == "Linux-only: no wheel":
+                        windows_item.setToolTip(
+                            "PyTorch does not build a Windows wheel for this CUDA version at all\n"
+                            "(CUDA 12.9 is excluded from the Windows build from torch 2.9.1 onward).\n"
+                            "The download does not exist.")
+                    else:
+                        windows_item.setToolTip("This wheel is not usable on Windows.")
                 self.compat_table.setItem(i, 11, windows_item)
 
             self._fit_table_columns(self.compat_table)

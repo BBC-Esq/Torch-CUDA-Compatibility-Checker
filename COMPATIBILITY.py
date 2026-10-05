@@ -955,16 +955,20 @@ WINDOWS-SPECIFIC LIMITATIONS
 | 2.10.0 | cu126  | Full support                                  |
 | 2.10.0 | cu128  | Full support                                  |
 | 2.10.0 | cu129  | No Win wheel (12.9 excluded from Win build)   |
-| 2.10.0 | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.10.0 | cu130  | Full support (bundles cuDNN 9.12.0.46, P22)   |
 | 2.9.1  | cu126  | Full support                                  |
 | 2.9.1  | cu128  | Full support                                  |
 | 2.9.1  | cu129  | No Win wheel (12.9 excluded from Win build)   |
-| 2.9.1  | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.9.1  | cu130  | Full support (bundles cuDNN 9.12.0.46, P22)   |
 | 2.9.0  | cu126  | Full support                                  |
 | 2.9.0  | cu128  | Full support                                  |
 | 2.9.0  | cu129  | Full support † (wheel exists; not in the tag) |
-| 2.9.0  | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.9.0  | cu130  | Full support (bundles cuDNN 9.12.0.46, P22)   |
 +--------+--------+-----------------------------------------------+
+* The cuDNN a Windows wheel bundles matches the Linux pin in the Torch and CUDA table,
+  EXCEPT on the rows that name a version: torch 2.9.0, 2.9.1 and 2.10.0 cu130 bundle
+  9.12.0.46 (Linux pins 9.13.0.50 / 9.13.0.50 / 9.15.1.9). Outside this table, torch
+  2.7.0 and 2.7.1 cu126 differ too: they bundle 9.7.1.26 (Linux pin 9.5.1.17). P22.
 * The three cu129 rows for 2.9.1 / 2.10.0 / 2.11.0 read "Full support" until
   2026-08-03. That was WRONG — no Windows cu129 wheel has existed since torch 2.9.1.
   See the cu129-on-Windows history table in the Torch and CUDA section, and P1/P2.
