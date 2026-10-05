@@ -32,8 +32,8 @@ class CompatibilityData:
             ],
             [
                 ("cuDNN", [
-                    "Informational only — what PyTorch tested with, not a requirement.",
-                    "Support follows CUDA: 9.x for 12.x (Win + Linux); 9.x for 13.x (Linux only).",
+                    "Windows wheels bundle their own cuDNN in torch/lib — CUDA 13 included.",
+                    "Linux wheels install it from pip; the column follows the platform toggle.",
                 ]),
                 ("TRITON", [
                     "PyTorch pins one triton version — the same pin on both platforms.",
@@ -43,52 +43,51 @@ class CompatibilityData:
         ]
 
         self.platform_tooltip = (
-            "Windows — hides wheels that are unusable on Windows, uses the kingbri1\n"
+            "Windows — hides wheels PyTorch does not build for Windows, uses the kingbri1\n"
             "Flash Attention 2 wheels, and hides Linux-only Python versions\n"
-            "(for example Python 3.15 on torch 2.13.0).\n"
+            "(for example Python 3.15 on torch 2.13.0). The cuDNN column shows the\n"
+            "version bundled inside the Windows wheel.\n"
             "\n"
             "Linux — shows every wheel, uses the official Dao-AILab Flash Attention 2\n"
-            "wheels, and installs triton rather than triton-windows.\n"
+            "wheels, installs triton rather than triton-windows, and shows the cuDNN\n"
+            "version the Linux wheel pins from pip.\n"
             "\n"
-            "A row marked Linux-only is either:\n"
-            "  • \"no cuDNN\" — the Windows wheel is built, but cuDNN 9.x for CUDA 13.x\n"
-            "    is Linux-only, so cuDNN-backed ops are unavailable; or\n"
-            "  • \"no wheel\" — PyTorch builds no Windows wheel at all (cu129, dropped\n"
-            "    from the Windows build at torch 2.9.1).\n"
-            "Hover the last column of a row to see which applies."
+            "Every Windows wheel bundles cuDNN, CUDA 13 (cu130/cu132) included.\n"
+            "A row marked \"Linux-only: no wheel\" has no Windows wheel at all (cu129,\n"
+            "dropped from the Windows build at torch 2.9.1)."
         )
 
         self.torch_cuda = [
-            {"torch": "2.14.1", "wheel": "cu132", "cuda": "13.2.2", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
-            {"torch": "2.14.1", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.14.1", "wheel": "cu132", "cuda": "13.2.2", "cudnn": "9.24.0.43", "windows": True},
+            {"torch": "2.14.1", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.24.0.43", "windows": True},
             {"torch": "2.14.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.14.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
-            {"torch": "2.14.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.24.0.43", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.14.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.24.0.43", "windows": True},
+            {"torch": "2.14.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.24.0.43", "windows": True},
             {"torch": "2.14.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.13.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
-            {"torch": "2.13.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.13.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": True},
+            {"torch": "2.13.0", "wheel": "cu130", "cuda": "13.0.3", "cudnn": "9.20.0.48", "windows": True},
             {"torch": "2.13.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.13.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.12.1", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
-            {"torch": "2.12.1", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.12.1", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": True},
+            {"torch": "2.12.1", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": True},
             {"torch": "2.12.1", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.12.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.12.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
-            {"torch": "2.12.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.12.0", "wheel": "cu132", "cuda": "13.2.1", "cudnn": "9.20.0.48", "windows": True},
+            {"torch": "2.12.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.20.0.48", "windows": True},
             {"torch": "2.12.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.11.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.19.0.56", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.11.0", "wheel": "cu130", "cuda": "13.0.2", "cudnn": "9.19.0.56", "windows": True},
             {"torch": "2.11.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.17.1.4", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.11.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.19.0.56", "windows": True},
             {"torch": "2.11.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.10.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.15.1.9", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.10.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.15.1.9", "cudnn_windows": "9.12.0.46", "windows": True},
             {"torch": "2.10.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.10.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.10.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.1", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.9.1", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "cudnn_windows": "9.12.0.46", "windows": True},
             {"torch": "2.9.1", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": False, "no_win_reason": "nowheel"},
             {"torch": "2.9.1", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.9.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
-            {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "windows": False, "no_win_reason": "cudnn"},
+            {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "cudnn_windows": "9.12.0.46", "windows": True},
             {"torch": "2.9.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "out_of_matrix": True},
             {"torch": "2.9.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.9.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
@@ -96,10 +95,10 @@ class CompatibilityData:
             {"torch": "2.8.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.8.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.7.1", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.7.1.26", "windows": True},
-            {"torch": "2.7.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True},
+            {"torch": "2.7.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "cudnn_windows": "9.7.1.26", "windows": True},
             {"torch": "2.7.1", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.1.0.70", "windows": True},
             {"torch": "2.7.0", "wheel": "cu128", "cuda": "12.8.0", "cudnn": "9.7.1.26", "windows": True},
-            {"torch": "2.7.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True},
+            {"torch": "2.7.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "cudnn_windows": "9.7.1.26", "windows": True},
             {"torch": "2.7.0", "wheel": "cu118", "cuda": "11.8.0", "cudnn": "9.1.0.70", "windows": True},
             {"torch": "2.6.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.5.1.17", "windows": True},
             {"torch": "2.6.0", "wheel": "cu124", "cuda": "12.4.1", "cudnn": "9.1.0.70", "windows": True},
@@ -1216,8 +1215,9 @@ class CompatibilityChecker(QMainWindow):
                 tc_mm = '.'.join(tc["cuda"].split('.')[:2])
                 if sel_mm != tc_mm:
                     continue
-            # Windows mode: hide torch wheels that lack Windows cuDNN (cu13x).
-            # Linux mode: all torch wheels are usable.
+            # Windows mode: hide torch wheels PyTorch does not build for Windows
+            # (cu129 from torch 2.9.1 on). Every Windows wheel bundles its own cuDNN,
+            # CUDA 13 included. Linux mode: all torch wheels are usable.
             if platform == "windows" and not tc.get("windows", True):
                 continue
 
@@ -1319,17 +1319,17 @@ class CompatibilityChecker(QMainWindow):
 
                     # "Wheel on this platform" status. In Windows mode we've already
                     # filtered out tc.windows == False, so this is always "Yes" in
-                    # Windows mode. In Linux mode, all tc entries are usable, but we
-                    # distinguish WHY a row is Linux-only: the Windows wheel exists but
-                    # has no cuDNN, versus no Windows wheel being built at all.
-                    if platform == "windows":
-                        windows_support = "Yes"
-                    elif tc.get("windows", True):
+                    # Windows mode. In Linux mode, all tc entries are usable; a row is
+                    # Linux-only when PyTorch builds no Windows wheel for it.
+                    if platform == "windows" or tc.get("windows", True):
                         windows_support = "Yes"
                     elif tc.get("no_win_reason") == "nowheel":
                         windows_support = "Linux-only: no wheel"
                     else:
-                        windows_support = "Linux-only: no cuDNN"
+                        windows_support = "Linux-only"
+
+                    cudnn_linux = tc["cudnn"]
+                    cudnn_windows = tc.get("cudnn_windows", cudnn_linux)
 
                     triton_pin = pt["triton"]
                     triton_compat_list = pt["triton_compat"]
@@ -1353,7 +1353,9 @@ class CompatibilityChecker(QMainWindow):
                         "cuda_exact_match": cuda_exact,
                         "cuda_selected": cuda_sel,
                         "out_of_matrix": tc.get("out_of_matrix", False),
-                        "cudnn": tc["cudnn"],
+                        "cudnn": cudnn_windows if platform == "windows" else cudnn_linux,
+                        "cudnn_linux": cudnn_linux,
+                        "cudnn_windows": cudnn_windows,
                         "triton": triton_display,
                         "triton_no_wheel": triton_no_wheel,
                         "fa2": ", ".join(sorted(fa2_versions, reverse=True)),
@@ -1370,7 +1372,7 @@ class CompatibilityChecker(QMainWindow):
         if compatible:
             self.compat_table.setRowCount(len(compatible))
             self.compat_table.setColumnCount(12)
-            last_col_header = "Win cuDNN" if platform == "windows" else "Platform"
+            last_col_header = "Windows" if platform == "windows" else "Platform"
             self.compat_table.setHorizontalHeaderLabels(
                 ["PyTorch", "Torchvision", "Torchaudio", "Python",
                  "CUDA (compatible)", "CUDA (torch-tested)", "cuDNN",
@@ -1388,8 +1390,9 @@ class CompatibilityChecker(QMainWindow):
                 "Informational only — not used for filtering.")
             cudnn_hdr = self.compat_table.horizontalHeaderItem(6)
             cudnn_hdr.setToolTip(
-                "The cuDNN version PyTorch tested with (informational only).\n"
-                "Actual cuDNN compatibility is determined by your CUDA version.")
+                "The cuDNN version the wheel uses (informational only): bundled inside\n"
+                "the Windows wheel, or pinned from pip by the Linux wheel. Follows the\n"
+                "platform toggle; the two can differ.")
 
             for i, combo in enumerate(compatible):
                 def make_item(text):
@@ -1419,12 +1422,18 @@ class CompatibilityChecker(QMainWindow):
                 else:
                     self.compat_table.setItem(i, 5, make_item(combo["cuda"]))
 
-                # cuDNN (torch-tested) — informational
+                # cuDNN — informational. Windows wheels bundle their own cuDNN in
+                # torch/lib; Linux wheels pin nvidia-cudnn-cuNN from pip (see P22).
                 cudnn_item = make_item(combo["cudnn"])
-                cudnn_item.setToolTip(
-                    f"PyTorch tested with cuDNN {combo['cudnn']}.\n"
-                    f"This is informational — cuDNN compatibility is\n"
-                    f"determined by your CUDA version, not torch.")
+                if platform == "windows":
+                    cudnn_tip = f"The Windows wheel bundles cuDNN {combo['cudnn_windows']} in torch/lib."
+                    if combo["cudnn_windows"] != combo["cudnn_linux"]:
+                        cudnn_tip += f"\nThe Linux wheel pins a different version: {combo['cudnn_linux']}."
+                else:
+                    cudnn_tip = f"The Linux wheel installs cuDNN {combo['cudnn_linux']} from pip."
+                    if combo["cudnn_windows"] != combo["cudnn_linux"]:
+                        cudnn_tip += f"\nThe Windows wheel bundles a different version: {combo['cudnn_windows']}."
+                cudnn_item.setToolTip(cudnn_tip + "\nInstalled automatically with torch; nothing to add.")
                 self.compat_table.setItem(i, 6, cudnn_item)
 
                 triton_item = make_item(combo["triton"])
@@ -1461,13 +1470,7 @@ class CompatibilityChecker(QMainWindow):
                 self.compat_table.setItem(i, 10, bnb_item)
 
                 windows_item = make_item(combo["windows"])
-                if combo["windows"] == "Linux-only: no cuDNN":
-                    windows_item.setBackground(QColor(255, 200, 100))
-                    windows_item.setForeground(QColor(0, 0, 0))
-                    windows_item.setToolTip(
-                        "A Windows wheel IS built for this combination, but cuDNN 9.x for\n"
-                        "CUDA 13.x is Linux-only, so cuDNN-backed ops are unavailable.")
-                elif combo["windows"] == "Linux-only: no wheel":
+                if combo["windows"] == "Linux-only: no wheel":
                     windows_item.setBackground(QColor(240, 130, 130))
                     windows_item.setForeground(QColor(0, 0, 0))
                     windows_item.setToolTip(

@@ -61,10 +61,16 @@ GROUND TRUTH SOURCES
 #     https://pypi.org/pypi/nvidia-cudnn-cu12/json
 #     https://pypi.org/pypi/nvidia-cudnn-cu13/json
 #     MUST filter yanked files and prereleases — see P4 (9.25.0.15 is fully yanked).
-#   CAVEAT: nvidia-cudnn-cu13 does publish a win_amd64 wheel (since 9.12.0.46, Aug 2025),
-#   which superficially contradicts "CUDA 13.x cuDNN is Linux-only". NVIDIA's support
-#   matrix still lists Windows driver support as N/A for the CUDA 13.x build, so the
-#   program's claim is correct as stated. Expect users to ask about this.
+#   CAVEAT: the support matrix describes NVIDIA's STANDALONE cuDNN product and still
+#   lists the Windows driver as N/A for the CUDA 13.x build. It says nothing about what
+#   a torch wheel ships, and NVIDIA's own releases contradict it for Windows: the
+#   redistributable manifests list windows-x86_64 cuda13 builds from 9.12.0 (2025-08-07)
+#     https://developer.download.nvidia.com/compute/cudnn/redist/redistrib_9.12.0.json
+#   (9.11.x had no CUDA 13 build on any platform), nvidia-cudnn-cu13 publishes
+#   win_amd64 wheels from 9.12.0.46, and every Windows cu130/cu132 torch wheel bundles
+#   that build in torch/lib, byte-identical to NVIDIA's wheel (verified 2026-10-05; it
+#   runs on an RTX 4090). What a torch wheel ships is settled ONLY by opening the wheel
+#   (P21, P22), never by a support matrix.
 #
 # ---- Triton (Linux, upstream) ----
 #   Repo: https://github.com/triton-lang/triton
@@ -229,6 +235,10 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #                    13.0 -> nvidia-cudnn-cu13==9.24.0.43
 #                    13.2 -> nvidia-cudnn-cu13==9.24.0.43
 #   Note the package NAME also changes (cu12 vs cu13). Parse each arch's block separately.
+#   PLATFORM SCOPE: every entry in PYTORCH_EXTRA_INSTALL_REQUIREMENTS carries
+#   "; platform_system == 'Linux'". The dict describes LINUX wheels only and must never
+#   be used to derive a Windows claim. Windows wheels bundle their CUDA/cuDNN DLLs in
+#   torch/lib instead (P21), and the bundled cuDNN can differ from these pins (P22).
 #
 #
 # --- P4. PyPI "latest" can be YANKED or a prerelease. Filter both. ---
@@ -416,6 +426,47 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   tracked in cuda_metapackages. Had 13.4.0 been added from the CI file back in
 #   August, the program would have carried a version that does not exist to this
 #   day, and the real release would have been a silent duplicate of a phantom.
+#
+#
+# --- P21. A build matrix's dependency dict is PLATFORM-SCOPED. Open the wheel. ---
+#   Windows torch wheels vendor CUDA and cuDNN into torch/lib/ and declare no nvidia-*
+#   dependency that applies on Windows (2.7.1 onward declare none; the 2.6.0/2.7.0
+#   Windows wheels list 13-14, every one marked platform_system == "Linux"). Linux
+#   wheels declare them and bundle none. Reading the Linux dict (P3) for a Windows
+#   claim produced 14 wrong "no cuDNN" rows, which the Windows view HID (132 of 206
+#   rows shown until 2026-10-05), and 5 wrong cuDNN versions (P22).
+#   Rule: any claim about what a wheel CONTAINS is settled by opening the wheel. The
+#   ZIP central directory sits at the end of the file and download.pytorch.org honours
+#   HTTP Range, so the manifest costs a few hundred KB, not the 1.7-3.3 GiB download:
+#     - Python: wrap the URL in a seekable file object that issues Range requests and
+#       pass it to zipfile.ZipFile. infolist() gives names, sizes and CRC-32s; read()
+#       extracts one member and checks its CRC.
+#     - Dependencies only (PEP 658): append ".metadata" to the wheel URL and read every
+#       Requires-Dist WITH its environment marker, not just the package name.
+#   Every Windows torch wheel bundles cuDNN, CUDA 13 included, from the first cu130
+#   Windows wheel (torch 2.9.0) on. There is no version boundary to find.
+#
+#
+# --- P22. The cuDNN version is PER-PLATFORM, and no script states the Windows value. ---
+#   The Windows wheel's bundled cuDNN can differ from the Linux pin. Proven 2026-10-05 by
+#   CRC-32 byte-identity of every torch/lib/cudnn*.dll against NVIDIA's nvidia-cudnn-cuNN
+#   win_amd64 wheel, and by the DLL version resource read through the Windows API:
+#     torch          wheel  Linux pin (cudnn)  Windows wheel ships (cudnn_windows)
+#     2.9.0, 2.9.1   cu130  9.13.0.50          9.12.0.46
+#     2.10.0         cu130  9.15.1.9           9.12.0.46
+#     2.7.0, 2.7.1   cu126  9.5.1.17           9.7.1.26
+#   The other 35 rows that have a Windows wheel match their Linux pin. 9.12.0.46 was the
+#   first cuDNN with a Windows CUDA 13 build; from 2.11.0 the two platforms converge.
+#   DECOYS - do NOT use as the Windows source:
+#     - .ci/pytorch/windows/internal/cuda_install.bat sets CUDNN_FOLDER per CUDA version
+#       but disagrees with the shipped wheels in most cu12x branches: at v2.7.1 cu126
+#       says 9.5.0.50 and cu128 says 9.7.0.66 (both wheels ship 9.7.1.26); at v2.9.0
+#       and v2.10.0 cu126 says 9.5.0.50 and cu128 says 9.7.0.66 (wheels ship 9.10.2.21).
+#       It happens to match the cu130 wheels.
+#     - CUDA_ARCHES_CUDNN_VERSION in the build matrix holds only the cuDNN MAJOR
+#       ({"12.6": "9", "13.0": "9", "13.2": "9"} at v2.14.1) and nothing references it.
+#   Store the Windows value in cudnn_windows only when it differs from the Linux pin, and
+#   re-verify by sweeping EVERY row, not by spot-checking one.
 
 
 
@@ -425,13 +476,18 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 # Non-obvious fields, so a future maintainer does not have to reverse-engineer them.
 #
 # torch_cuda[] :
-#   windows        True  = a Windows wheel exists AND has cuDNN.
-#                  False = not usable on Windows; the REASON is in no_win_reason.
-#   no_win_reason  "cudnn"   = Windows wheel IS built, but no Windows cuDNN exists for
-#                              this CUDA major (cuDNN 9.x for CUDA 13.x is Linux-only).
-#                  "nowheel" = NO Windows wheel is built at all (cu129 from torch 2.9.1 on).
-#                  These are different failure modes and must not be labeled identically;
-#                  telling a Windows user "no cuDNN" when the wheel does not exist is wrong.
+#   windows        True  = a Windows wheel exists (it always bundles its own cuDNN, P21).
+#                  False = no Windows wheel; the REASON is in no_win_reason.
+#   no_win_reason  "nowheel" = NO Windows wheel is built at all (cu129 from torch 2.9.1 on).
+#                  The former "cudnn" reason ("wheel built, no Windows cuDNN") was removed
+#                  2026-10-05: no Windows torch wheel has ever lacked cuDNN (P21).
+#   cudnn          The cuDNN the LINUX wheel pins (nvidia-cudnn-cuNN==X, see P3).
+#   cudnn_windows  OPTIONAL. The cuDNN bundled in the win_amd64 wheel, set ONLY when it
+#                  differs from cudnn (P22). Ground truth is the wheel itself: CRC-match
+#                  torch/lib/cudnn*.dll against NVIDIA's nvidia-cudnn-cuNN win_amd64
+#                  wheel for the candidate version. NOT the build matrix (Linux-only) and
+#                  NOT cuda_install.bat. The cuDNN column shows it when the toggle is
+#                  Windows; the tooltip names the other platform's value when they differ.
 #   out_of_matrix  OPTIONAL, True = the wheel is confirmed installable but does NOT appear
 #                  in that release's TAGGED build matrix (see P7/P16). Rendered as a "†"
 #                  on the "CUDA (torch-tested)" cell, purple, with an explanatory tooltip,
@@ -496,6 +552,8 @@ Torch and CUDA Compatibility
 # NOTE: This shows which cuDNN version torch pins for each wheel — it does NOT mean
 # that a particular CUDA version is only compatible with that specific cuDNN version.
 # See the cuDNN & CUDA section below for actual CUDA/cuDNN/platform compatibility.
+# The cuDNN column is the LINUX pin. Windows wheels bundle their own cuDNN, which
+# differs on the rows marked "Win:" below (P22).
 +--------+---------+--------+------------+
 | Torch  | Moniker | CUDA   | cuDNN      |
 +--------+---------+--------+------------+
@@ -526,17 +584,17 @@ Torch and CUDA Compatibility
 |        | cu128   | 12.8.1 | 9.19.0.56  |
 |        | cu126   | 12.6.3 | 9.10.2.21  |
 +--------+---------+--------+------------+
-|        | cu130   | 13.0.0 | 9.15.1.9   |
+|        | cu130   | 13.0.0 | 9.15.1.9   | <-- Win: wheel bundles 9.12.0.46 (P22)
 | 2.10.0 | cu129   | 12.9.1 | 9.10.2.21  |
 |        | cu128   | 12.8.1 | 9.10.2.21  |
 |        | cu126   | 12.6.3 | 9.10.2.21  |
 +--------+---------+--------+------------+
-|        | cu130   | 13.0.0 | 9.13.0.50  |
+|        | cu130   | 13.0.0 | 9.13.0.50  | <-- Win: wheel bundles 9.12.0.46 (P22)
 | 2.9.1  | cu129   | 12.9.1 | 9.10.2.21  |
 |        | cu128   | 12.8.1 | 9.10.2.21  |
 |        | cu126   | 12.6.3 | 9.10.2.21  |
 +--------+---------+--------+------------+
-|        | cu130   | 13.0.0 | 9.13.0.50  |
+|        | cu130   | 13.0.0 | 9.13.0.50  | <-- Win: wheel bundles 9.12.0.46 (P22)
 | 2.9.0  | cu129   | 12.9.1 | 9.10.2.21  | <-- † not in the v2.9.0 tagged matrix (P16)
 |        | cu128   | 12.8.1 | 9.10.2.21  |
 |        | cu126   | 12.6.3 | 9.10.2.21  |
@@ -546,11 +604,11 @@ Torch and CUDA Compatibility
 |        | cu126   | 12.6.3 | 9.10.2.21  |
 +--------+---------+--------+------------+
 |        | cu128   | 12.8.0 | 9.7.1.26   |
-| 2.7.1  | cu126   | 12.6.3 | 9.5.1.17   |
+| 2.7.1  | cu126   | 12.6.3 | 9.5.1.17   | <-- Win: wheel bundles 9.7.1.26 (P22)
 |        | cu118   | 11.8.0 | 9.1.0.70   | <-- nvidia-cudnn-cu11 (P19)
 +--------+---------+--------+------------+
 |        | cu128   | 12.8.0 | 9.7.1.26   |
-| 2.7.0  | cu126   | 12.6.3 | 9.5.1.17   |
+| 2.7.0  | cu126   | 12.6.3 | 9.5.1.17   | <-- Win: wheel bundles 9.7.1.26 (P22)
 |        | cu118   | 11.8.0 | 9.1.0.70   | <-- nvidia-cudnn-cu11 (P19)
 +--------+---------+--------+------------+
 |        | cu126   | 12.6.3 | 9.5.1.17   |
@@ -577,7 +635,7 @@ Torch and CUDA Compatibility
 #
 # Torch 2.12.0 changes:
 #   - cu128 and cu129 wheels were DROPPED. New wheel matrix is cu126, cu130, cu132.
-#   - cu132 (CUDA 13.2.1) is new. Linux-only (cuDNN 9.x for CUDA 13 = Linux only).
+#   - cu132 (CUDA 13.2.1) is new, on Linux and Windows (the Windows wheel bundles cuDNN, P21).
 #   - PyPI default remains cu130 (CUDA_STABLE = "13.0" in the build matrix).
 #   - Python 3.13 free-threaded (3.13t) and 3.14 free-threaded (3.14t) wheels added.
 #   - torchaudio entered maintenance mode after 2.11.0 — no 2.12.0 release of
@@ -794,18 +852,23 @@ cuDNN & CUDA
 +-------------------+---------------------------+----------------------+
 | cuDNN Package     | CUDA Toolkit              | Windows Support      |
 +-------------------+---------------------------+----------------------+
-| 9.x for CUDA 13.x | 13.0-13.4 [4]             | NOT SUPPORTED [1]    |
+| 9.x for CUDA 13.x | 13.0-13.4 [4]             | Matrix says N/A [1]  |
 | 9.x for CUDA 12.x | 12.0-12.6, 12.8, 12.9 [2] | Driver >= 527.41     |
 |   + Blackwell GPU | 12.8, 12.9                | Driver >= 570.65 [3] |
 +-------------------+---------------------------+----------------------+
-[1] Linux-only since cuDNN 9.11.0 (Jul 2025). On Windows, use WSL2 with
-    the Windows host driver -- do NOT install a Linux NVIDIA driver
-    inside the WSL distro. Host driver minimums above still apply.
+[1] NVIDIA's support matrix lists the Windows driver as N/A for the CUDA 13.x
+    build, yet NVIDIA publishes Windows CUDA 13 builds: windows-x86_64 cuda13 in
+    the redistrib manifests and win_amd64 nvidia-cudnn-cu13 wheels, both from
+    9.12.0 (2025-08-07; 9.11.x had no CUDA 13 build on any platform). Every
+    Windows cu130/cu132 torch wheel bundles that build in torch/lib, and it runs
+    (verified 2026-10-05, RTX 4090, driver 616.92). The matrix describes the
+    standalone product only; it is not evidence about torch wheels (P21).
 [2] CUDA 12.7 was never released by Nvidia, hence the gap.
 [3] Blackwell (cc 10.0, 12.0) requires CUDA >= 12.8, Linux driver
     >= 570.26, Windows driver >= 570.65.
 [4] Rubin (cc 10.7) is supported from cuDNN 9.26.0 and requires CUDA >= 13.4
-    and Linux driver >= 615.71.09. CUDA 13.x build only, so Linux-only.
+    and Linux driver >= 615.71.09. CUDA 13.x build only; the matrix lists no
+    Windows driver for it (see [1]).
 
 * GPU floor: cuDNN 9.11+ requires Turing (cc 7.5). Volta, Pascal, and
   Maxwell were removed in 9.11.0 (Jul 2025); 9.10.2 is the last 9.x
@@ -827,9 +890,10 @@ cuDNN & CUDA
   manually delete prior C:\Program Files\NVIDIA\CUDNN\v9.x tree before
   upgrading); lib path moved from lib\ to lib\x64\ in 9.x; no static
   archives, no JIT meta-package, no ARM64 on Windows.
-* The "NOT SUPPORTED on Windows" claim for the CUDA 13.x build is NVIDIA's own
-  (driver column reads N/A), even though nvidia-cudnn-cu13 does publish a
-  win_amd64 wheel on PyPI. See the cuDNN entry in GROUND TRUTH SOURCES.
+* The Windows driver column reads N/A for the CUDA 13.x build. That is NVIDIA's
+  claim about the standalone product. NVIDIA nonetheless publishes Windows CUDA 13
+  builds (redistrib manifests, nvidia-cudnn-cu13 win_amd64 wheels), and PyTorch's
+  Windows cu130/cu132 wheels bundle them. See GROUND TRUTH SOURCES and P21.
 
 * taken from https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/support-matrix.html
   Every release is also archived at a versioned URL:
@@ -851,47 +915,47 @@ cuDNN & CUDA
 WINDOWS-SPECIFIC LIMITATIONS
 *****************************
 
-# There are TWO distinct reasons a wheel is unusable on Windows. Do not conflate them:
-#   "No cuDNN"     - the Windows wheel IS built and downloadable, but no Windows cuDNN
-#                    exists for CUDA 13.x, so cuDNN-backed ops are unavailable.
+# The only Windows limitation is a missing wheel:
 #   "No Win wheel" - PyTorch does not build a Windows wheel for this arch at all. The
 #                    download simply does not exist (HTTP 403 on the index).
+# Every Windows wheel that exists bundles its own cuDNN in torch/lib, CUDA 13 included.
+# The cu130/cu132 rows read "No cuDNN" until 2026-10-05. That was WRONG (P21).
 +--------+--------+-----------------------------------------------+
 | Torch  | Wheel  | Windows Status                                |
 +--------+--------+-----------------------------------------------+
 | 2.14.1 | cu126  | Full support                                  |
-| 2.14.1 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
-| 2.14.1 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.14.1 | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.14.1 | cu132  | Full support (cuDNN bundled in the wheel)     |
 | 2.14.0 | cu126  | Full support                                  |
-| 2.14.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
-| 2.14.0 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.14.0 | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.14.0 | cu132  | Full support (cuDNN bundled in the wheel)     |
 | 2.13.0 | cu126  | Full support                                  |
 | 2.13.0 | cu129  | No Win wheel (12.9 excluded from Win build)   |
-| 2.13.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
-| 2.13.0 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.13.0 | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.13.0 | cu132  | Full support (cuDNN bundled in the wheel)     |
 | 2.12.1 | cu126  | Full support                                  |
 | 2.12.1 | cu129  | No Win wheel (12.9 excluded from Win build)   |
-| 2.12.1 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
-| 2.12.1 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.12.1 | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.12.1 | cu132  | Full support (cuDNN bundled in the wheel)     |
 | 2.12.0 | cu126  | Full support                                  |
-| 2.12.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
-| 2.12.0 | cu132  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.12.0 | cu130  | Full support (cuDNN bundled in the wheel)     |
+| 2.12.0 | cu132  | Full support (cuDNN bundled in the wheel)     |
 | 2.11.0 | cu126  | Full support                                  |
 | 2.11.0 | cu128  | Full support                                  |
 | 2.11.0 | cu129  | No Win wheel (12.9 excluded from Win build)   |
-| 2.11.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.11.0 | cu130  | Full support (cuDNN bundled in the wheel)     |
 | 2.10.0 | cu126  | Full support                                  |
 | 2.10.0 | cu128  | Full support                                  |
 | 2.10.0 | cu129  | No Win wheel (12.9 excluded from Win build)   |
-| 2.10.0 | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.10.0 | cu130  | Full support (cuDNN bundled in the wheel)     |
 | 2.9.1  | cu126  | Full support                                  |
 | 2.9.1  | cu128  | Full support                                  |
 | 2.9.1  | cu129  | No Win wheel (12.9 excluded from Win build)   |
-| 2.9.1  | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.9.1  | cu130  | Full support (cuDNN bundled in the wheel)     |
 | 2.9.0  | cu126  | Full support                                  |
 | 2.9.0  | cu128  | Full support                                  |
 | 2.9.0  | cu129  | Full support † (wheel exists; not in the tag) |
-| 2.9.0  | cu130  | No cuDNN (cuDNN 9.x for CUDA 13 = Linux only) |
+| 2.9.0  | cu130  | Full support (cuDNN bundled in the wheel)     |
 +--------+--------+-----------------------------------------------+
 * The three cu129 rows for 2.9.1 / 2.10.0 / 2.11.0 read "Full support" until
   2026-08-03. That was WRONG — no Windows cu129 wheel has existed since torch 2.9.1.
