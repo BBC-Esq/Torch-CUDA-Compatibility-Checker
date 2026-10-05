@@ -809,6 +809,14 @@ VERSION SCOPE POLICY  (what belongs in the program at all)
 #            bitsandbytes   0.47.0
 #            flash-attn     2.8.2   (both Linux and Windows tables)
 #
+# OUT OF SCOPE BY OWNER DECISION. These exist upstream but are deliberately NOT tracked.
+# Do not report them as findings and do not propose adding them:
+#   flash-attn-3   FlashAttention 3. On PyPI, and on PyTorch's cu126/cu128/cu129/cu130
+#                  indexes (Windows wheels on cu126-cu129). Excluded 2026-10-05: the owner
+#                  does not use it.
+#   The owner has also said the current scope (the libraries above, on Windows and
+#   Linux) is enough. Do not propose new libraries, platforms or hardware targets.
+#
 # The failure mode this policy exists to prevent: for a long time versions were added
 # only when a scan happened to surface them, which silently left holes ABOVE the floor
 # (CUDA 12.6.0/12.6.1/12.6.2, 12.9.0, 13.0.1 were all missing while 13.3.1 was present).
