@@ -814,16 +814,62 @@ class CompatibilityChecker(QMainWindow):
         # Legend bar
         legend_layout = QHBoxLayout()
         legend_layout.addStretch()
-        for color, symbol, desc in [
-            (QColor(255, 165, 0), "*", "Assumed compatible (not officially tested)"),
-            (QColor(100, 149, 237), "~", "CUDA patch version differs (same major.minor)"),
-            (QColor(186, 148, 214), "†", "Wheel exists but was not in the tagged release matrix"),
+        for color, symbol, desc, tooltip in [
+            (QColor(255, 165, 0), "*", "Assumed compatible (not officially tested)",
+             "* = Assumed compatible (not officially tested)\n"
+             "Marks cells in the Flash Attn 2 and bitsandbytes columns.\n"
+             "\n"
+             "What it means: there is no build of the package made for this exact\n"
+             "combination, so one made for a very close combination is listed\n"
+             "instead. It is expected to work but has not been officially tested.\n"
+             "\n"
+             "Example: Flash Attention 2 for Windows has no wheel built for PyTorch\n"
+             "2.9.1, so the wheel built for PyTorch 2.9.0 is used. 2.9.1 is only a\n"
+             "bug-fix ('patch') release of 2.9.0, and add-ons built for one patch\n"
+             "release usually work with the others.\n"
+             "\n"
+             "If it fails to import or crashes, choose a row without this mark."),
+            (QColor(100, 149, 237), "~", "CUDA patch version differs (same major.minor)",
+             "~ = CUDA patch version differs (same major.minor)\n"
+             "Marks cells in the Xformers and bitsandbytes columns.\n"
+             "\n"
+             "What it means: the package was built with a slightly different CUDA\n"
+             "release than the PyTorch wheel in the same row. Only the last number\n"
+             "(the patch) differs; the first two (13.0, 12.8 and so on) match.\n"
+             "\n"
+             "Example: xformers 0.0.35 was built with CUDA 13.0.0, while PyTorch\n"
+             "2.14.1 for CUDA 13.0 was built with CUDA 13.0.3.\n"
+             "\n"
+             "This is normally fine: builds are matched by the first two numbers,\n"
+             "and patch releases that share them are compatible with each other.\n"
+             "\n"
+             "Nothing extra is needed; install the row as shown."),
+            (QColor(186, 148, 214), "†", "Wheel exists but was not in the tagged release matrix",
+             "† = Wheel exists but was not in the tagged release matrix\n"
+             "Marks cells in the CUDA (torch-tested) column.\n"
+             "\n"
+             "What it means: when PyTorch tags a release, its build settings list\n"
+             "the CUDA versions that release is built for (the 'release matrix').\n"
+             "This wheel is not on that list: it was built later from the same\n"
+             "release branch and published under the same version number.\n"
+             "\n"
+             "Example: PyTorch 2.9.0 for CUDA 12.9.\n"
+             "\n"
+             "The wheel is real and installs normally; a direct download check on\n"
+             "PyTorch's server confirmed it. Sources that go only by the official\n"
+             "list may say it does not exist.\n"
+             "\n"
+             "Nothing extra is needed; install the row as shown."),
         ]:
             swatch = QLabel()
+            swatch.setObjectName("legendSwatch")
             swatch.setFixedSize(14, 14)
-            swatch.setStyleSheet(f"background-color: {color.name()}; border: 1px solid #888;")
+            swatch.setStyleSheet(f"#legendSwatch {{ background-color: {color.name()}; border: 1px solid #888; }}")
+            swatch.setToolTip(tooltip)
             legend_layout.addWidget(swatch)
-            legend_layout.addWidget(QLabel(f" {symbol} = {desc}"))
+            label = QLabel(f" {symbol} = {desc}")
+            label.setToolTip(tooltip)
+            legend_layout.addWidget(label)
             legend_layout.addSpacing(16)
         legend_layout.addStretch()
         layout.addLayout(legend_layout)
