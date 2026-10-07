@@ -946,6 +946,21 @@ class CompatibilityChecker(QMainWindow):
         lines.append("=" * 44)
         lines.append("")
 
+        if self.tabs.currentWidget() is self.metapackage_table:
+            lines.append("Active Filters:")
+            lines.append(f"  CUDA: {self.cuda_combo.currentText()}")
+            lines.append("")
+            lines.append("CUDA Metapackages")
+            lines.append("-" * 17)
+            meta_headers, meta_rows = self._read_table(self.metapackage_table)
+            has_meta = meta_rows and not (len(meta_rows) == 1 and len(meta_headers) == 1 and meta_headers[0] == "Message")
+            if has_meta:
+                lines.append(self._format_ascii_table(meta_headers, meta_rows))
+            else:
+                lines.append("No metapackage data available.")
+            lines.append("")
+            return "\n".join(lines)
+
         filters = [
             ("PyTorch", self.torch_combo.currentText()),
             ("Python", self.python_combo.currentText()),
@@ -969,28 +984,6 @@ class CompatibilityChecker(QMainWindow):
             lines.append(self._format_ascii_table(compat_headers, compat_rows))
         else:
             lines.append("No compatible combinations found.")
-        lines.append("")
-
-        lines.append("CUDA Metapackages")
-        lines.append("-" * 17)
-        meta_headers, meta_rows = self._read_table(self.metapackage_table)
-        has_meta = meta_rows and not (len(meta_rows) == 1 and len(meta_headers) == 1 and meta_headers[0] == "Message")
-        if has_meta and has_compat:
-            cuda_col = next((i for i, h in enumerate(compat_headers) if h == "CUDA (torch-tested)"), -1)
-            if cuda_col >= 0:
-                compatible_cudas = set(row[cuda_col].replace("†", "").strip() for row in compat_rows)
-                keep_cols = [0]
-                for i in range(1, len(meta_headers)):
-                    if meta_headers[i] in compatible_cudas:
-                        keep_cols.append(i)
-                if len(keep_cols) > 1:
-                    meta_headers = [meta_headers[i] for i in keep_cols]
-                    meta_rows = [[row[i] for i in keep_cols] for row in meta_rows]
-            lines.append(self._format_ascii_table(meta_headers, meta_rows))
-        elif has_meta:
-            lines.append(self._format_ascii_table(meta_headers, meta_rows))
-        else:
-            lines.append("No metapackage data available.")
         lines.append("")
 
         return "\n".join(lines)
