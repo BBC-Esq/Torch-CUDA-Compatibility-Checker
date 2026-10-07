@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QPushButton, QTableWidget, QSizePolicy,
                                QTableWidgetItem, QTabWidget, QGroupBox,
                                QAbstractItemView, QMenu, QSplitter, QScrollArea)
-from PySide6.QtCore import Qt, QSettings, QUrl
+from PySide6.QtCore import Qt, QSettings, QUrl, QEvent
 from PySide6.QtGui import QFont, QColor, QDesktopServices, QAction
 
 class CompatibilityData:
@@ -609,14 +609,12 @@ class CompatibilityChecker(QMainWindow):
             bonus = share + (1 if i < remainder else 0)
             header.resizeSection(i, header.sectionSize(i) + bonus)
 
-    def _refit_visible_tables(self):
-        for table in (self.compat_table, self.metapackage_table):
-            self._fit_table_columns(table)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if getattr(self, "compat_table", None) is not None:
-            self._refit_visible_tables()
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Resize:
+            for table in (self.compat_table, self.metapackage_table):
+                if obj is table.viewport():
+                    self._fit_table_columns(table)
+        return super().eventFilter(obj, event)
 
     @staticmethod
     def _version_sorted(values, reverse=False):
@@ -808,6 +806,9 @@ class CompatibilityChecker(QMainWindow):
         self.metapackage_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.metapackage_table.horizontalHeader().setStretchLastSection(False)
         self.tabs.addTab(self.metapackage_table, "CUDA Metapackages")
+
+        self.compat_table.viewport().installEventFilter(self)
+        self.metapackage_table.viewport().installEventFilter(self)
 
         self.splitter = QSplitter(Qt.Horizontal)
         self.splitter.addWidget(side_scroll)
