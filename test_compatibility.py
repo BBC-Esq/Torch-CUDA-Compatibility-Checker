@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QTableWidgetItem, QTabWidget, QGroupBox,
                                QAbstractItemView, QMenu, QSplitter, QScrollArea)
 from PySide6.QtCore import Qt, QSettings, QUrl, QEvent
-from PySide6.QtGui import QFont, QColor, QDesktopServices, QAction
+from PySide6.QtGui import QColor, QDesktopServices, QAction
 
 class CompatibilityData:
     def __init__(self):
@@ -678,14 +678,6 @@ class CompatibilityChecker(QMainWindow):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
-
-        title = QLabel("PyTorch CUDA Compatibility Checker")
-        title_font = QFont()
-        title_font.setPointSize(16)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title)
 
         layout.addWidget(self._build_notes_group())
 
