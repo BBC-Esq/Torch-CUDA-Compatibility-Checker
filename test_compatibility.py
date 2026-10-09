@@ -1128,8 +1128,10 @@ class CompatibilityChecker(QMainWindow):
                     lines.append(f"pip install packaging psutil ninja wheel")
                     lines.append(f"FLASH_ATTENTION_FORCE_BUILD=TRUE MAX_JOBS=4 pip install flash-attn=={fa2_ver} --no-build-isolation")
                 else:
-                    lines.append(f"# Flash Attention 2 (no pre-built Linux wheel for this combo; falls back to PyPI source build)")
-                    lines.append(f"pip install flash-attn=={fa2_ver}")
+                    lines.append(f"# Flash Attention 2 (no pre-built Linux wheel listed for this combo; FlashAttention's setup uses a")
+                    lines.append(f"# matching wheel if one exists, otherwise builds from source, which needs the CUDA toolkit (nvcc))")
+                    lines.append(f"pip install packaging psutil ninja wheel")
+                    lines.append(f"MAX_JOBS=4 pip install flash-attn=={fa2_ver} --no-build-isolation")
             else:
                 url = self._get_fa2_windows_url(fa2_ver, moniker, torch_ver, python_ver)
                 if url:
