@@ -1122,6 +1122,11 @@ class CompatibilityChecker(QMainWindow):
                 if url:
                     lines.append(f"# Flash Attention 2 (Linux wheel from Dao-AILab/flash-attention)")
                     lines.append(f"pip install {url}")
+                elif not self._torch_linux_new_abi(torch_ver, cuda_ver):
+                    lines.append(f"# Flash Attention 2 (no pre-built Linux wheel works with this torch build; builds from source,")
+                    lines.append(f"# which needs the CUDA toolkit (nvcc) and can take a long time)")
+                    lines.append(f"pip install packaging psutil ninja wheel")
+                    lines.append(f"FLASH_ATTENTION_FORCE_BUILD=TRUE MAX_JOBS=4 pip install flash-attn=={fa2_ver} --no-build-isolation")
                 else:
                     lines.append(f"# Flash Attention 2 (no pre-built Linux wheel for this combo; falls back to PyPI source build)")
                     lines.append(f"pip install flash-attn=={fa2_ver}")
@@ -1172,6 +1177,12 @@ class CompatibilityChecker(QMainWindow):
                     f"cxx11abiFALSE-cp{py_nodot}-cp{py_nodot}-win_amd64.whl")
         return None
 
+    @staticmethod
+    def _torch_linux_new_abi(torch_ver, cuda_ver):
+        torch_parts = tuple(int(p) for p in torch_ver.split(".")[:2])
+        cuda_mm = tuple(int(p) for p in cuda_ver.split(".")[:2])
+        return torch_parts >= (2, 7) or (torch_parts == (2, 6) and cuda_mm >= (12, 6))
+
     def _get_fa2_linux_url(self, fa2_ver, torch_ver, python_ver, cuda_ver):
         """Build the Dao-AILab Linux FA2 wheel URL from the release tag.
 
@@ -1181,12 +1192,13 @@ class CompatibilityChecker(QMainWindow):
         different version in the filename than their release tag (v2.8.3.post1's cu13
         assets are named 2.8.3), so the matched entry's "wheel_ver" wins when present.
         CU is the torch wheel's CUDA major (12 or 13). TORCH_MM is the torch
-        major.minor (e.g. "2.8" for torch 2.8.0). ABI is TRUE for torch >= 2.7 and
-        for torch 2.6.0+cu126 (manylinux_2_28 wheels, new C++11 ABI) and FALSE for
-        torch 2.6.0+cu118/cu124 (linux_x86_64 wheels, old ABI); the switch happened
-        per CUDA variant inside torch 2.6.0, so the torch version alone cannot
-        decide it. Picking the wrong ABI/CUDA either 404s or imports
-        against a mismatched torch and dies with undefined symbols. We only build
+        major.minor (e.g. "2.8" for torch 2.8.0). The cxx11abi label in an FA2
+        filename is not the ABI it was compiled with: from torch 2.6 on, FA2's CI
+        builds both labels against a new-ABI torch, so these wheels only load into a
+        new-ABI torch (every torch >= 2.7 wheel and torch 2.6.0+cu126). torch
+        2.6.0+cu118/cu124 are old-ABI builds that no FA2 wheel loads into, so we
+        return None and the caller emits a source build. Otherwise we use the TRUE
+        label, which is what FA2's own setup.py picks. We only build
         the URL if (fa2_ver, torch_ver, python_ver, cuda_major) appears in
         self.flash_attention_linux — otherwise the wheel may not exist.
         """
@@ -1194,17 +1206,14 @@ class CompatibilityChecker(QMainWindow):
         entry = next((x for x in self.data.flash_attention_linux
                       if x["fa2"] == fa2_ver and x["torch"] == torch_ver
                       and x["python"] == python_ver and x["cuda"] == cuda_major), None)
-        if entry is None:
+        if entry is None or not self._torch_linux_new_abi(torch_ver, cuda_ver):
             return None
         wheel_ver = entry.get("wheel_ver", fa2_ver)
         py_nodot = python_ver.replace(".", "")
         torch_mm = ".".join(torch_ver.split(".")[:2])
-        torch_parts = tuple(int(p) for p in torch_ver.split(".")[:2])
-        cuda_mm = tuple(int(p) for p in cuda_ver.split(".")[:2])
-        abi = "TRUE" if torch_parts >= (2, 7) or (torch_parts == (2, 6) and cuda_mm >= (12, 6)) else "FALSE"
         return (f"https://github.com/Dao-AILab/flash-attention/releases/download/"
                 f"v{fa2_ver}/flash_attn-{wheel_ver}%2Bcu{cuda_major}torch{torch_mm}"
-                f"cxx11abi{abi}-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
+                f"cxx11abiTRUE-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
 
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
         cuda_short = '.'.join(cuda_version.split('.')[:2])  # e.g. "13.0"
@@ -1484,6 +1493,14 @@ class CompatibilityChecker(QMainWindow):
                     fa2_item.setBackground(QColor(255, 165, 0))
                     fa2_item.setForeground(QColor(0, 0, 0))
                     fa2_item.setToolTip("* = Assumed compatible (patch version, not officially tested)")
+                if platform == "linux" and combo["fa2"] != "-" and not self._torch_linux_new_abi(combo["torch"], combo["cuda"]):
+                    fa2_item.setToolTip(
+                        "No pre-built FlashAttention wheel works with this PyTorch build. From torch 2.6\n"
+                        "on, every FlashAttention Linux wheel is built for the newer C++ ABI and this\n"
+                        "build uses the older one, so the wheel would install and then fail at import.\n"
+                        "The Linux install command builds FlashAttention from source instead, which\n"
+                        "needs the CUDA toolkit and can take a long time. PyTorch 2.6.0's CUDA 12.6\n"
+                        "build works with the pre-built wheels.")
                 self.compat_table.setItem(i, 8, fa2_item)
 
                 xf_item = make_item(combo["xformers"])

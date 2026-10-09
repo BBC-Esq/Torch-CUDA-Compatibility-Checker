@@ -326,19 +326,32 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   torch>=2.10. For dependency pins, trust the PyPI JSON's requires_dist over the repo.
 #
 #
-# --- P11. Linux C++11 ABI depends on the TORCH WHEEL (version AND CUDA), not on FA2. ---
-#   PyTorch's Linux wheels moved from linux_x86_64 (old ABI) to manylinux_2_28 (new ABI)
-#   per CUDA variant INSIDE torch 2.6.0, not at 2.7: 2.6.0+cu118 and +cu124 are old ABI,
-#   2.6.0+cu126 is already new ABI, and every wheel from 2.7 on is new ABI. So FA2 Linux
-#   wheels need cxx11abiTRUE for torch >= 2.7 and for 2.6.0+cu126, and cxx11abiFALSE for
-#   2.6.0+cu118/cu124. FA2 ships BOTH ABIs for its cu12 torch 2.4-2.8 wheels, so a wrong
-#   pick does not 404: pip installs it and `import flash_attn` dies with undefined
-#   symbols. FA2's own setup.py picks by torch._C._GLIBCXX_USE_CXX11_ABI.
-#   Verify a torch wheel's ABI by its platform tag in the index listing, or by the
+# --- P11. Linux C++11 ABI: read it from the WHEEL, never from a version or a label. ---
+#   torch: PyTorch's Linux wheels moved from linux_x86_64 (old ABI) to manylinux_2_28
+#   (new ABI) per CUDA variant INSIDE torch 2.6.0, not at 2.7: 2.6.0+cu118 and +cu124
+#   are old ABI, 2.6.0+cu126 is already new ABI, and every wheel from 2.7 on is new ABI.
+#   Check a torch wheel by its platform tag in the index listing, or by the
 #   -D_GLIBCXX_USE_CXX11_ABI=0/1 define in torch/share/cmake/Torch/TorchConfig.cmake
 #   inside the wheel (present through 2.7.0; absent from the 2.8.0 and 2.14.1 wheels).
-#   Until 2026-10 this note put the boundary at torch 2.7, and the URL builder followed it
-#   and emitted cxx11abiFALSE for all 15 torch 2.6.0+cu126 combinations.
+#   FA2: the cxx11abiTRUE/FALSE in an FA2 wheel's NAME is not its compiled ABI. FA2's
+#   publish.yml compiles against a torch from cu{maxv} (maxv = 126 for torch 2.6, 128
+#   for 2.7, 129 for 2.8: all new ABI), FLASH_ATTENTION_FORCE_CXX11_ABI=FALSE forces
+#   nothing (setup.py can only force TRUE), and the wheel is then named after the matrix
+#   value. So from torch 2.6 on BOTH names are new-ABI builds; only the FALSE wheels for
+#   torch 2.4/2.5, built against a cu124 torch, are really old ABI (2.5 measured).
+#   Measured on the c10 symbol each extension imports, torchCheckFail(..., const
+#   std::string&): ...jRKSs in an old-ABI build, ...jRKNSt7__cxx1112basic_string... in
+#   a new-ABI one. Control: the torch 2.5 pair differs; every 2.6, 2.7 and 2.8 pair
+#   (v2.8.2, v2.8.3, v2.8.3.post1) does not.
+#   Consequence: every FA2 Linux wheel loads into a new-ABI torch, and none loads into
+#   torch 2.6.0+cu118/cu124 (undefined symbol at import; `pip install flash-attn` there
+#   fetches the same wheel through setup.py). The URL builder emits the TRUE name, which
+#   is what FA2's own setup.py picks, for new-ABI torch, and a
+#   FLASH_ATTENTION_FORCE_BUILD=TRUE source build for old-ABI torch.
+#   History: until 2026-10 this note put the torch boundary at 2.7 and took the FA2
+#   labels at face value. f6e328f then switched 2.6.0+cu126 to TRUE, believing its
+#   FALSE wheel failed at import; it never did, because both names are new-ABI builds.
+#   The combination that really failed was 2.6.0+cu124.
 #
 #
 # --- P12. Some packages ship PER-CUDA builds on the PyTorch index, not just PyPI. ---
@@ -1166,14 +1179,14 @@ Linux Flash Attention 2
 +--------------+------------------------------------------------------+
 | v2.8.3.post1 | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
 | v2.8.3.post1 | torch 2.5.1 + cuda 12.x + cp39-cp313                 |
-| v2.8.3.post1 | torch 2.6.0 + cuda 12.x + cp39-cp313                 |
+| v2.8.3.post1 | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
 | v2.8.3.post1 | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.3.post1 | torch 2.8.0 + cuda 12.x + cp39-cp313                 |
 | v2.8.3.post1 | torch 2.9.0 + cuda 13.x + cp312 (x86_64, aarch64) *! |
 +--------------+------------------------------------------------------+
 | v2.8.3       | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
 | v2.8.3       | torch 2.5.1 + cuda 12.x + cp39-cp313                 |
-| v2.8.3       | torch 2.6.0 + cuda 12.x + cp39-cp313                 |
+| v2.8.3       | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
 | v2.8.3       | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.3       | torch 2.8.0 + cuda 12.x + cp39-cp313                 |
 | v2.8.3       | torch 2.9.0 + cuda 12.x + cp312 (x86_64, aarch64) ** |
@@ -1182,7 +1195,7 @@ Linux Flash Attention 2
 +--------------+------------------------------------------------------+
 | v2.8.2       | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
 | v2.8.2       | torch 2.5.1 + cuda 12.x + cp39-cp313                 |
-| v2.8.2       | torch 2.6.0 + cuda 12.x + cp39-cp313                 |
+| v2.8.2       | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
 | v2.8.2       | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 +--------------+------------------------------------------------------+
 ** torch 2.9.0/2.10.0 are NOT in the v2.8.3 publish.yml CI matrix (which only has up to
@@ -1213,9 +1226,9 @@ Linux Flash Attention 2
 # This is why flash_attention_linux entries carry an optional "wheel_ver" field:
 #   {"fa2": "2.8.3.post1", ..., "cuda": "13", "wheel_ver": "2.8.3"}
 #
-# ABI note: post1 cu12 assets exist in BOTH cxx11abiTRUE and cxx11abiFALSE; the cu13
-# assets are cxx11abiTRUE only. Selection still follows P11 (TRUE for torch >= 2.7 and
-# for 2.6.0+cu126; FALSE for 2.6.0+cu118/cu124).
+# ABI note: post1 cu12 assets exist with BOTH cxx11abiTRUE and cxx11abiFALSE names; the
+# cu13 assets are cxx11abiTRUE only. From torch 2.6 on both names are new-ABI builds
+# (P11), so the builder always uses TRUE and gives old-ABI torch a source build.
 #
 # DECISION (2026-08-03): post1 IS tracked despite being a regression, because the
 # program's first purpose is a comprehensive, honest compatibility map. Omitting the
