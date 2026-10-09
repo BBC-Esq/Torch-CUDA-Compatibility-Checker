@@ -1181,9 +1181,11 @@ class CompatibilityChecker(QMainWindow):
         different version in the filename than their release tag (v2.8.3.post1's cu13
         assets are named 2.8.3), so the matched entry's "wheel_ver" wins when present.
         CU is the torch wheel's CUDA major (12 or 13). TORCH_MM is the torch
-        major.minor (e.g. "2.8" for torch 2.8.0). ABI is TRUE for torch >= 2.7
-        (manylinux_2_28 wheels use the new C++11 ABI) and FALSE for torch 2.6.x
-        (manylinux1, old ABI). Picking the wrong ABI/CUDA either 404s or imports
+        major.minor (e.g. "2.8" for torch 2.8.0). ABI is TRUE for torch >= 2.7 and
+        for torch 2.6.0+cu126 (manylinux_2_28 wheels, new C++11 ABI) and FALSE for
+        torch 2.6.0+cu118/cu124 (linux_x86_64 wheels, old ABI); the switch happened
+        per CUDA variant inside torch 2.6.0, so the torch version alone cannot
+        decide it. Picking the wrong ABI/CUDA either 404s or imports
         against a mismatched torch and dies with undefined symbols. We only build
         the URL if (fa2_ver, torch_ver, python_ver, cuda_major) appears in
         self.flash_attention_linux — otherwise the wheel may not exist.
@@ -1198,7 +1200,8 @@ class CompatibilityChecker(QMainWindow):
         py_nodot = python_ver.replace(".", "")
         torch_mm = ".".join(torch_ver.split(".")[:2])
         torch_parts = tuple(int(p) for p in torch_ver.split(".")[:2])
-        abi = "TRUE" if torch_parts >= (2, 7) else "FALSE"
+        cuda_mm = tuple(int(p) for p in cuda_ver.split(".")[:2])
+        abi = "TRUE" if torch_parts >= (2, 7) or (torch_parts == (2, 6) and cuda_mm >= (12, 6)) else "FALSE"
         return (f"https://github.com/Dao-AILab/flash-attention/releases/download/"
                 f"v{fa2_ver}/flash_attn-{wheel_ver}%2Bcu{cuda_major}torch{torch_mm}"
                 f"cxx11abi{abi}-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")

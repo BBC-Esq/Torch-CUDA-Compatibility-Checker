@@ -173,8 +173,9 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   Note the "%2B" — the "+" in the local version must be URL-encoded.
 #   Two ways this check lies, both hit in 2026-09:
 #   - A 403 means "absent" only if the filename was right. Linux wheels are tagged
-#     manylinux_2_28_x86_64, never linux_x86_64, and the naive tag 403s on a wheel that
-#     exists (2.13.0 cu129: linux_x86_64 = 403, manylinux_2_28_x86_64 = 200). Before
+#     manylinux_2_28_x86_64 on every row except torch 2.6.0+cu118/cu124, which are
+#     linux_x86_64 only (see P11), and the wrong tag 403s on a wheel that exists
+#     (2.13.0 cu129: linux_x86_64 = 403, manylinux_2_28_x86_64 = 200). Before
 #     concluding absence, confirm the same filename pattern returns 200 on a moniker
 #     that does ship, or list the index and read the real names.
 #   - A moniker's INDEX PAGE can return 200 with no wheels for it. From 2026-09-17,
@@ -325,11 +326,19 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   torch>=2.10. For dependency pins, trust the PyPI JSON's requires_dist over the repo.
 #
 #
-# --- P11. Linux C++11 ABI depends on the TORCH version, not the FA2 version. ---
-#   PyTorch's Linux wheels moved from manylinux1 (old ABI) to manylinux_2_28 (new ABI) at
-#   torch 2.7. So FA2 Linux wheels need cxx11abiTRUE for torch >= 2.7 and cxx11abiFALSE
-#   for torch 2.6.x. Picking wrong either 404s or imports and dies with undefined symbols.
-#   Check a torch wheel's platform tag to confirm which ABI a torch release uses.
+# --- P11. Linux C++11 ABI depends on the TORCH WHEEL (version AND CUDA), not on FA2. ---
+#   PyTorch's Linux wheels moved from linux_x86_64 (old ABI) to manylinux_2_28 (new ABI)
+#   per CUDA variant INSIDE torch 2.6.0, not at 2.7: 2.6.0+cu118 and +cu124 are old ABI,
+#   2.6.0+cu126 is already new ABI, and every wheel from 2.7 on is new ABI. So FA2 Linux
+#   wheels need cxx11abiTRUE for torch >= 2.7 and for 2.6.0+cu126, and cxx11abiFALSE for
+#   2.6.0+cu118/cu124. FA2 ships BOTH ABIs for its cu12 torch 2.4-2.8 wheels, so a wrong
+#   pick does not 404: pip installs it and `import flash_attn` dies with undefined
+#   symbols. FA2's own setup.py picks by torch._C._GLIBCXX_USE_CXX11_ABI.
+#   Verify a torch wheel's ABI by its platform tag in the index listing, or by the
+#   -D_GLIBCXX_USE_CXX11_ABI=0/1 define in torch/share/cmake/Torch/TorchConfig.cmake
+#   inside the wheel (present through 2.7.0; absent from the 2.8.0 and 2.14.1 wheels).
+#   Until 2026-10 this note put the boundary at torch 2.7, and the URL builder followed it
+#   and emitted cxx11abiFALSE for all 15 torch 2.6.0+cu126 combinations.
 #
 #
 # --- P12. Some packages ship PER-CUDA builds on the PyTorch index, not just PyPI. ---
@@ -1205,7 +1214,8 @@ Linux Flash Attention 2
 #   {"fa2": "2.8.3.post1", ..., "cuda": "13", "wheel_ver": "2.8.3"}
 #
 # ABI note: post1 cu12 assets exist in BOTH cxx11abiTRUE and cxx11abiFALSE; the cu13
-# assets are cxx11abiTRUE only. Selection still follows P11 (torch >= 2.7 -> TRUE).
+# assets are cxx11abiTRUE only. Selection still follows P11 (TRUE for torch >= 2.7 and
+# for 2.6.0+cu126; FALSE for 2.6.0+cu118/cu124).
 #
 # DECISION (2026-08-03): post1 IS tracked despite being a regression, because the
 # program's first purpose is a comprehensive, honest compatibility map. Omitting the
