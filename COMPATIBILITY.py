@@ -49,6 +49,8 @@ GROUND TRUTH SOURCES
 #   Components to extract (each has a .version field):
 #     cuda_nvrtc, cuda_cudart, cuda_nvcc, cuda_cupti, libcublas, libcufft,
 #     libcurand, libcusolver, libcusparse, cuda_nvtx, libnvjitlink
+#   Those are the JSON keys. The program stores them under its own field names
+#   (cuda_cudart is "cuda-runtime"); see the cuda_metapackages schema note for the mapping.
 #   Not every release has all 11 — 11.8.0 has no libnvjitlink (nvJitLink is CUDA 12.0+).
 #   Absent components are simply omitted from that version's dict and render as "-".
 #
@@ -120,7 +122,8 @@ GROUND TRUTH SOURCES
 #     Look for: torch_version, CU_VERSIONS, os (ubuntu vs windows)
 #   FA2 version range supported:
 #     https://raw.githubusercontent.com/facebookresearch/xformers/v{VER}/xformers/ops/fmha/flash.py
-#     Look for: FLASH_VER_MIN, FLASH_VER_LAST
+#     Look for: FLASH_VER_MIN, FLASH_VER_LAST (a tuple literal through v0.0.31.post1,
+#     parse_version("...") from v0.0.32 on; parse both forms)
 #   Build toolkit CUDA versions (may differ from torch CUDA monikers):
 #     https://raw.githubusercontent.com/facebookresearch/xformers/v{VER}/.github/actions/setup-build-cuda/action.yml
 #   PyPI metadata (for torch pin in published wheel — may differ from pyproject.toml):
@@ -130,7 +133,8 @@ GROUND TRUTH SOURCES
 #   Repo: https://github.com/bitsandbytes-foundation/bitsandbytes
 #   CI build matrix (CUDA versions, Linux + Windows + ARM):
 #     https://raw.githubusercontent.com/bitsandbytes-foundation/bitsandbytes/{VER}/.github/workflows/python-package.yml
-#     Look in `build-cuda` job for: cuda_version matrix
+#     Look in the `build-cuda` job (0.48.0 on; `build-shared-libs-cuda` at 0.47.0) for:
+#     cuda_version matrix
 #   Python support (wheels are py3 / version-agnostic):
 #     https://raw.githubusercontent.com/bitsandbytes-foundation/bitsandbytes/{VER}/pyproject.toml
 #     Look for: requires-python, classifiers (Programming Language :: Python :: ...)
@@ -558,6 +562,16 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #              differs from the release version (see P6). Defaults to the "fa2" value.
 #
 # cuda_metapackages{} :
+#   Keyed by CUDA version. Each value maps the program's own field names to component
+#   versions. They are NOT the redistrib JSON keys, and cuda-runtime is a rename, not a
+#   spelling change, so key any sweep on this mapping, never on the JSON names:
+#     program field   redistrib JSON key        program field   redistrib JSON key
+#     cuda-nvrtc      cuda_nvrtc                cufft           libcufft
+#     cuda-runtime    cuda_cudart               curand          libcurand
+#     cuda-nvcc       cuda_nvcc                 cusolver        libcusolver
+#     cuda-cupti      cuda_cupti                cusparse        libcusparse
+#     cublas          libcublas                 nvtx            cuda_nvtx
+#                                               nvjitlink       libnvjitlink
 #   Not every version carries all 11 components (11.8.0 has no nvjitlink). The "Any"
 #   metapackage view therefore builds its row list from the UNION of all versions' keys,
 #   NOT from the first entry — it previously used next(iter(...)) which would have
@@ -1281,8 +1295,12 @@ Xformers
 **************
 
 # GROUND TRUTH (per tagged release, e.g. v0.0.35):
-#   Torch version:  CU_VERSIONS list in .github/workflows/wheels.yml
-#   FA2 range:      FLASH_VER_MIN / FLASH_VER_LAST in xformers/ops/fmha/flash.py
+#   Torch version:  the `for torch_version in [...]` loop in .github/workflows/wheels.yml
+#                   (NOT CU_VERSIONS, which is the CUDA moniker list below)
+#   FA2 range:      FLASH_VER_MIN / FLASH_VER_LAST in xformers/ops/fmha/flash.py, spelled two
+#                   ways: a tuple literal, FLASH_VER_MIN = (2, 7, 1), through v0.0.31.post1,
+#                   and FLASH_VER_MIN = parse_version("2.7.1") from v0.0.32 on. Parse both;
+#                   a search for one form finds nothing on 5 of the 13 tracked tags.
 #   CUDA monikers:  CU_VERSIONS list in .github/workflows/wheels.yml
 # Ground truth files saved in: ground-truth/xformers_wheels_*.yml, xformers_flash_*.py, xformers_cuda_*.yml
 #
@@ -1345,7 +1363,8 @@ Bitsandbytes
 #   e.g. https://github.com/bitsandbytes-foundation/bitsandbytes/blob/0.49.2/.github/workflows/python-package.yml
 # Ground truth files saved in: ground-truth/bnb_python-package_*.yml
 #
-# CUDA versions come from the cuda_version matrix in the build-cuda job.
+# CUDA versions come from the cuda_version matrix in the build-cuda job (0.48.0 on). At
+# 0.47.0 the job is build-shared-libs-cuda; the whole job layout was renamed at 0.48.0.
 # The same matrix builds for Linux (ubuntu), Windows (windows-2025), and ARM.
 #
 # Python: Wheels are tagged py3 (Python-version agnostic). The supported Python
