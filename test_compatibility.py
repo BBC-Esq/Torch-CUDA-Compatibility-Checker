@@ -6,9 +6,10 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QHBoxLayout, QFormLayout, QLabel, QComboBox,
                                QPushButton, QTableWidget, QSizePolicy,
                                QTableWidgetItem, QTabWidget, QGroupBox,
-                               QAbstractItemView, QMenu, QSplitter, QScrollArea)
+                               QAbstractItemView, QMenu, QSplitter, QScrollArea, QMessageBox)
 from PySide6.QtCore import Qt, QSettings, QUrl, QEvent
 from PySide6.QtGui import QColor, QDesktopServices, QAction
+from downloader import RowDownloadDialog, NvidiaDownloadDialog, CUDA_COMPONENT_KEYS, nvidia_platform
 
 class CompatibilityData:
     def __init__(self):
@@ -580,6 +581,7 @@ class CompatibilityChecker(QMainWindow):
         super().__init__()
         self.settings = QSettings(get_settings_path(), QSettings.IniFormat)
         self.data = CompatibilityData()
+        self._download_dialogs = []
         self.init_ui()
         self._block_updates = True
         self.load_settings()
@@ -770,7 +772,8 @@ class CompatibilityChecker(QMainWindow):
 
         for text, slot in [("Reset All", self.reset_selections),
                            ("Export to TXT", self.export_to_txt),
-                           ("Copy to Clipboard", self.copy_to_clipboard)]:
+                           ("Copy to Clipboard", self.copy_to_clipboard),
+                           ("Download CUDA / cuDNN…", lambda: self.open_nvidia_downloads())]:
             btn = QPushButton(text)
             btn.clicked.connect(slot)
             side_layout.addWidget(btn)
@@ -798,6 +801,10 @@ class CompatibilityChecker(QMainWindow):
         self.metapackage_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.metapackage_table.horizontalHeader().setStretchLastSection(False)
         self.tabs.addTab(self.metapackage_table, "CUDA Metapackages")
+
+        download_hint = QLabel("Double-click a version or right-click a row to download")
+        download_hint.setStyleSheet("color: gray; padding-right: 6px;")
+        self.tabs.setCornerWidget(download_hint, Qt.TopRightCorner)
 
         self.compat_table.viewport().installEventFilter(self)
         self.metapackage_table.viewport().installEventFilter(self)
@@ -877,6 +884,11 @@ class CompatibilityChecker(QMainWindow):
         # Context menu for install commands
         self.compat_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.compat_table.customContextMenuRequested.connect(self.show_context_menu)
+        self.compat_table.cellDoubleClicked.connect(self._compat_double_clicked)
+        self.metapackage_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.metapackage_table.customContextMenuRequested.connect(self.show_meta_context_menu)
+        self.metapackage_table.cellDoubleClicked.connect(self._meta_download)
+        self.metapackage_table.horizontalHeader().sectionDoubleClicked.connect(lambda col: self._meta_download(-1, col))
 
     def load_settings(self):
         if self.settings.contains("window/geometry"):
@@ -930,6 +942,13 @@ class CompatibilityChecker(QMainWindow):
         self.settings.setValue("filters/platform", self.platform_combo.currentText())
 
     def closeEvent(self, event):
+        if any(d.is_downloading() for d in self._download_dialogs):
+            answer = QMessageBox.question(self, "Downloads in progress", "Cancel the running downloads and quit?")
+            if answer != QMessageBox.Yes:
+                event.ignore()
+                return
+        for dialog in list(self._download_dialogs):
+            dialog.shutdown()
         self.save_settings()
         super().closeEvent(event)
 
@@ -1048,6 +1067,10 @@ class CompatibilityChecker(QMainWindow):
         if self.compat_table.columnCount() < 12:
             return
         menu = QMenu(self)
+        download_action = QAction("Download…", self)
+        download_action.triggered.connect(lambda: self.open_row_downloads(row))
+        menu.addAction(download_action)
+        menu.addSeparator()
         win_action = QAction("Copy Install Commands (Windows)", self)
         linux_action = QAction("Copy Install Commands (Linux)", self)
         win_action.triggered.connect(lambda: self.copy_install_commands(row, "windows"))
@@ -1059,6 +1082,112 @@ class CompatibilityChecker(QMainWindow):
     def _get_cell(self, row, col):
         item = self.compat_table.item(row, col)
         return item.text() if item else ""
+
+    def _triton_pin_and_sympy(self, torch_ver, python_ver):
+        for pt in self.data.torch_python_triton:
+            if pt["torch"] == torch_ver:
+                # No triton/triton-windows wheel exists for this Python, so omit Triton.
+                triton_pin = None if python_ver in pt.get("triton_no_python", []) else pt["triton"]
+                return triton_pin, pt["sympy"]
+        return None, None
+
+    def _row_download_spec(self, row):
+        platform = self.platform_combo.currentText().lower()
+        torch_ver, torchvision_ver, torchaudio_ver, python_ver = (self._get_cell(row, c) for c in range(4))
+        cuda_ver = self._get_cell(row, 5).replace("†", "").strip()
+        cuda_parts = cuda_ver.split(".")
+        moniker = f"cu{cuda_parts[0]}{cuda_parts[1]}"
+        triton_pin, _ = self._triton_pin_and_sympy(torch_ver, python_ver)
+
+        def cell_versions(col):
+            cell = self._get_cell(row, col)
+            return [] if cell in ("", "-", "N/A") else [v.strip() for v in cell.split(",")]
+
+        items = []
+        for key, version in (("torch", torch_ver), ("torchvision", torchvision_ver), ("torchaudio", torchaudio_ver)):
+            if version not in ("", "-", "N/A"):
+                items.append({"key": key, "name": key, "versions": [version], "source": "pytorch",
+                              "package": key, "wheel": True})
+        if triton_pin:
+            project = "triton-windows" if platform == "windows" else "triton"
+            items.append({"key": "triton", "name": project, "versions": [triton_pin], "source": "pypi",
+                          "package": project, "prefix": platform == "windows", "wheel": True})
+        fa2_cell = cell_versions(8)
+        if fa2_cell:
+            fa2 = [v.rstrip("*") for v in fa2_cell]
+            if platform == "linux":
+                urls = {v: self._get_fa2_linux_url(v, torch_ver, python_ver, cuda_ver) for v in fa2}
+            else:
+                urls = {v: self._get_fa2_windows_url(v, moniker, torch_ver, python_ver) for v in fa2}
+            notes = {v.rstrip("*"): "Ready: built for an earlier PyTorch patch release (assumed compatible)"
+                     for v in fa2_cell if v.endswith("*")}
+            items.append({"key": "fa2", "name": "flash-attn", "versions": fa2, "source": "fa2",
+                          "urls": urls, "notes": notes, "wheel": True})
+        xformers = [v.rstrip("~") for v in cell_versions(9)]
+        if xformers:
+            items.append({"key": "xformers", "name": "xformers", "versions": xformers, "source": "pytorch",
+                          "package": "xformers", "wheel": True})
+        bnb = [v.rstrip("*~") for v in cell_versions(10)]
+        if bnb:
+            items.append({"key": "bnb", "name": "bitsandbytes", "versions": bnb, "source": "pypi",
+                          "package": "bitsandbytes", "wheel": True})
+        cudnn = self._get_cell(row, 6)
+        if cudnn not in ("", "-", "N/A"):
+            items.append({"key": "cudnn", "name": "cuDNN (NVIDIA archive)", "versions": [cudnn],
+                          "source": "cudnn", "variant": f"cuda{cuda_parts[0]}"})
+        components = self.data.cuda_metapackages.get(cuda_ver, {})
+        if components:
+            items.append({"key": "cuda", "name": f"CUDA {cuda_ver} components (NVIDIA archives)",
+                          "release": cuda_ver,
+                          "children": [(name, ver, CUDA_COMPONENT_KEYS[name]) for name, ver in components.items()]})
+        title = (f"PyTorch {torch_ver} · CUDA {cuda_ver} ({moniker}) · Python {python_ver} · "
+                 f"{self.platform_combo.currentText()}")
+        return {"title": title, "platform": platform, "python": python_ver, "moniker": moniker, "items": items}
+
+    def open_row_downloads(self, row, focus=None):
+        self._show_download_dialog(RowDownloadDialog(self, self.settings, self._row_download_spec(row), focus))
+
+    def _compat_double_clicked(self, row, col):
+        if self.compat_table.columnCount() < 12:
+            return
+        focus = {0: "torch", 1: "torchvision", 2: "torchaudio", 4: "cuda", 5: "cuda", 6: "cudnn",
+                 7: "triton", 8: "fa2", 9: "xformers", 10: "bnb"}.get(col, "wheels")
+        self.open_row_downloads(row, focus)
+
+    def open_nvidia_downloads(self, release=None, checked=()):
+        platform = nvidia_platform(self.platform_combo.currentText().lower())
+        self._show_download_dialog(NvidiaDownloadDialog(self, self.settings, "cuda", release, platform, None, checked))
+
+    def _meta_target(self, row, col):
+        table = self.metapackage_table
+        headers = [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())]
+        if len(headers) < 2 or headers[0] != "Package":
+            return None, None
+        name_item = table.item(row, 0) if row >= 0 else None
+        release = headers[col] if col >= 1 else headers[-1]
+        return release, CUDA_COMPONENT_KEYS.get(name_item.text() if name_item else "")
+
+    def _meta_download(self, row, col):
+        release, key = self._meta_target(row, col)
+        if release:
+            self.open_nvidia_downloads(release, [key] if key else list(CUDA_COMPONENT_KEYS.values()))
+
+    def show_meta_context_menu(self, pos):
+        table = self.metapackage_table
+        row, col = table.rowAt(pos.y()), table.columnAt(pos.x())
+        release, _ = self._meta_target(row, col)
+        if not release:
+            return
+        menu = QMenu(self)
+        action = QAction(f"Download CUDA {release} from NVIDIA…", self)
+        action.triggered.connect(lambda: self._meta_download(row, col))
+        menu.addAction(action)
+        menu.exec(table.viewport().mapToGlobal(pos))
+
+    def _show_download_dialog(self, dialog):
+        self._download_dialogs.append(dialog)
+        dialog.destroyed.connect(lambda *_: self._download_dialogs.remove(dialog) if dialog in self._download_dialogs else None)
+        dialog.show()
 
     def copy_install_commands(self, row, platform):
         torch_ver = self._get_cell(row, 0)
@@ -1075,16 +1204,7 @@ class CompatibilityChecker(QMainWindow):
         moniker = f"cu{cuda_parts[0]}{cuda_parts[1]}"
 
         # Look up triton pin and sympy from torch_python_triton
-        triton_pin = None
-        sympy_ver = None
-        for pt in self.data.torch_python_triton:
-            if pt["torch"] == torch_ver:
-                triton_pin = pt["triton"]
-                sympy_ver = pt["sympy"]
-                # No triton/triton-windows wheel exists for this Python, so omit Triton.
-                if python_ver in pt.get("triton_no_python", []):
-                    triton_pin = None
-                break
+        triton_pin, sympy_ver = self._triton_pin_and_sympy(torch_ver, python_ver)
 
         lines = []
         lines.append(f"# PyTorch {torch_ver} + CUDA {cuda_ver} ({moniker})")
