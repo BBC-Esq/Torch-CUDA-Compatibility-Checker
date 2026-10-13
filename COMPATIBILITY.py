@@ -101,12 +101,16 @@ GROUND TRUTH SOURCES
 #       | jq -r '.assets[].name'
 #     Parse each as: flash_attn-{VER}+cu{CU}torch{T_MM}cxx11abi{ABI}-cp{PY}-cp{PY}-linux_{ARCH}.whl
 #     Watch for P6 (filename version != tag) and P8 (newer release, less coverage).
+#   New releases: list them all, since PyPI and the per-tag URL both miss one in progress:
+#     curl -s "https://api.github.com/repos/Dao-AILab/flash-attention/releases?per_page=100" \
+#       | jq -r '.[] | "\(.tag_name)\t\(.prerelease)\t\(.assets|length)\t\(.published_at)"'
 #   PyPI:
 #     https://pypi.org/pypi/flash-attn/json
 #   NOTE: FA2 has no hard torch pin (setup.py: install_requires=["torch"]).
 #         The CI matrix defines what was built/tested.
-#   NOTE: upstream now publishes FA4 betas (fa4-v4.0.0.betaNN) on a weekly cadence while
-#         FA2 sits idle. FA2 2.x may stop receiving releases; betas are not tracked.
+#   NOTE: upstream publishes FA4 betas (fa4-v4.0.0.betaNN) weekly; betas are not tracked.
+#         FA2 resumed with v2.8.3.post2 (2026-10-13, a security fix), not tracked yet:
+#         its assets were still uploading (42 vs post1's 50) and PyPI still had post1.
 #
 # ---- Flash Attention 2 (Windows) ----
 #   Repo: https://github.com/kingbri1/flash-attention
@@ -174,6 +178,7 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #
 #   IMPORTANT: download.pytorch.org is S3-backed and returns **403** (not 404) for a
 #   nonexistent wheel. Treat 403 as "does not exist". 200 means it shipped.
+#   The index's own links point at download-r2.pytorch.org, which returns 404 instead.
 #   Note the "%2B" — the "+" in the local version must be URL-encoded.
 #   Two ways this check lies, both hit in 2026-09:
 #   - A 403 means "absent" only if the filename was right. Linux wheels are tagged
