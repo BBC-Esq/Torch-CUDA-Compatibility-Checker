@@ -523,6 +523,9 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                  already happened once. Re-verify with a HEAD request instead.
 #                  The "†" is presentation only: the export's metapackage column filter
 #                  and the install-command builder both strip it before matching.
+#   ecosystem_no_win  OPTIONAL, True = torchvision and torchaudio have no Windows wheel on
+#                  this row's moniker although torch does. Windows mode shows them as
+#                  "N/A" and the Windows install command omits them. Set on 2.9.0/cu129.
 #
 # torch_python_triton[] :
 #   cuda_versions      major.minor strings, matched against torch_cuda's full versions.
@@ -555,6 +558,15 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                      is the likely first change. If only one platform gains a 3.15
 #                      wheel, this single list goes wrong for the other and has to
 #                      become per-platform.
+#   torchvision_no_python  OPTIONAL. Pythons torch supports but its torchvision has no
+#                      wheel for; the cell reads "N/A" and the install command omits it.
+#                      ["3.15"] on 2.13.0: torchvision 0.28.0 stops at cp314.
+#
+# xformers[] :
+#   python_max   OPTIONAL. Newest Python with a wheel. The per-Python builds through
+#                0.0.30 stop at cp312; 0.0.31+ ship one cp39-abi3 wheel instead.
+#   no_win_cuda  OPTIONAL. torch CUDA versions whose moniker has no Windows wheel of this
+#                release: 0.0.29.post2 has none on cu126.
 #
 # flash_attention_linux[] :
 #   cuda       CUDA MAJOR ("12"/"13") of the torch wheel this FA2 wheel pairs with.

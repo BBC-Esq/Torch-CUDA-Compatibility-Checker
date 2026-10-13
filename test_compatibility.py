@@ -89,7 +89,8 @@ class CompatibilityData:
             {"torch": "2.9.1", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.9.1", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.9.0", "wheel": "cu130", "cuda": "13.0.0", "cudnn": "9.13.0.50", "cudnn_windows": "9.12.0.46", "windows": True},
-            {"torch": "2.9.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "out_of_matrix": True},
+            {"torch": "2.9.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True, "out_of_matrix": True,
+             "ecosystem_no_win": True},
             {"torch": "2.9.0", "wheel": "cu128", "cuda": "12.8.1", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.9.0", "wheel": "cu126", "cuda": "12.6.3", "cudnn": "9.10.2.21", "windows": True},
             {"torch": "2.8.0", "wheel": "cu129", "cuda": "12.9.1", "cudnn": "9.10.2.21", "windows": True},
@@ -117,7 +118,8 @@ class CompatibilityData:
              "triton": "3.8.0", "triton_compat": ["3.8.0"], "triton_no_python": ["3.15"], "sympy": ">=1.13.3"},
             {"torch": "2.13.0", "cuda_versions": ["12.6", "12.9", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"], "python_linux_only": ["3.15"],
-             "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "triton_no_python": ["3.15"], "sympy": ">=1.13.3"},
+             "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "triton_no_python": ["3.15"],
+             "torchvision_no_python": ["3.15"], "sympy": ">=1.13.3"},
             {"torch": "2.12.1", "cuda_versions": ["12.6", "12.9", "13.0", "13.2"],
              "python": ["3.10", "3.11", "3.12", "3.13", "3.14"], "triton": "3.7.1", "triton_compat": ["3.7.0", "3.7.1"], "sympy": ">=1.13.3"},
             {"torch": "2.12.0", "cuda_versions": ["12.6", "13.0", "13.2"],
@@ -300,11 +302,11 @@ class CompatibilityData:
             {"xformers": "0.0.31", "torch": "2.7.1", "fa2": "2.7.1-2.8.0",
              "cuda": ["12.6.3", "12.8.0"], "notes": ""},
             {"xformers": "0.0.30", "torch": "2.7.0", "fa2": "2.7.1-2.7.4",
-             "cuda": ["12.6.3", "12.8.0"], "notes": ""},
+             "cuda": ["12.6.3", "12.8.0"], "python_max": "3.12", "notes": ""},
             {"xformers": "0.0.29.post3", "torch": "2.6.0", "fa2": "2.7.1-2.7.2",
-             "cuda": ["12.4.1", "12.6.3"], "notes": ""},
+             "cuda": ["12.4.1", "12.6.3"], "python_max": "3.12", "notes": ""},
             {"xformers": "0.0.29.post2", "torch": "2.6.0", "fa2": "2.7.1-2.7.2",
-             "cuda": ["12.4.1", "12.6.3"], "notes": ""},
+             "cuda": ["12.4.1", "12.6.3"], "python_max": "3.12", "no_win_cuda": ["12.6.3"], "notes": ""},
         ]
 
         # Ground truth: python-package.yml from tagged releases in bitsandbytes-foundation/bitsandbytes
@@ -1083,6 +1085,23 @@ class CompatibilityChecker(QMainWindow):
         item = self.compat_table.item(row, col)
         return item.text() if item else ""
 
+    def _ecosystem_versions(self, torch_ver, cuda_ver, python_ver, platform):
+        ecosystem = self.data.torch_ecosystem.get(torch_ver, {})
+        versions = {pkg: ecosystem.get(pkg, "-") for pkg in ("torchvision", "torchaudio")}
+        tips = {}
+        tc = next((r for r in self.data.torch_cuda if r["torch"] == torch_ver and r["cuda"] == cuda_ver), {})
+        pt = next((p for p in self.data.torch_python_triton if p["torch"] == torch_ver), {})
+        for pkg, version in versions.items():
+            if version in ("-", "N/A"):
+                continue
+            if platform == "windows" and tc.get("ecosystem_no_win"):
+                tips[pkg] = (f"No Windows {pkg} {version} wheel exists for {tc['wheel']}, only Linux ones,\n"
+                             f"so the Windows install command leaves {pkg} out. torch itself installs.")
+            elif pkg == "torchvision" and python_ver in pt.get("torchvision_no_python", []):
+                tips[pkg] = (f"torchvision {version} has no Python {python_ver} wheel, so the install command\n"
+                             f"leaves it out. torch itself installs.")
+        return (*("N/A" if pkg in tips else versions[pkg] for pkg in ("torchvision", "torchaudio")), tips)
+
     def _triton_pin_and_sympy(self, torch_ver, python_ver):
         for pt in self.data.torch_python_triton:
             if pt["torch"] == torch_ver:
@@ -1191,10 +1210,9 @@ class CompatibilityChecker(QMainWindow):
 
     def copy_install_commands(self, row, platform):
         torch_ver = self._get_cell(row, 0)
-        torchvision_ver = self._get_cell(row, 1)
-        torchaudio_ver = self._get_cell(row, 2)
         python_ver = self._get_cell(row, 3)
         cuda_ver = self._get_cell(row, 5).replace("†", "").strip()  # CUDA (torch-tested) column
+        torchvision_ver, torchaudio_ver, _ = self._ecosystem_versions(torch_ver, cuda_ver, python_ver, platform)
         fa2_cell = self._get_cell(row, 8)
         xf_cell = self._get_cell(row, 9)
         bnb_cell = self._get_cell(row, 10)
@@ -1447,13 +1465,19 @@ class CompatibilityChecker(QMainWindow):
                             return tuple(int(p) for p in torch_ver.split('.')) >= tuple(int(p) for p in xf["torch"].split('.'))
                         return xf["torch"] == torch_ver
 
+                    def xf_available(xf):
+                        py_parts = tuple(int(p) for p in py_ver.split('.'))
+                        if xf.get("python_max") and py_parts > tuple(int(p) for p in xf["python_max"].split('.')):
+                            return False
+                        return not (platform == "windows" and tc["cuda"] in xf.get("no_win_cuda", []))
+
                     xf_exact = [x for x in self.data.xformers
-                                if xf_torch_match(x, tc["torch"]) and tc["cuda"] in x["cuda"]]
+                                if xf_torch_match(x, tc["torch"]) and tc["cuda"] in x["cuda"] and xf_available(x)]
                     # Patch-version-diff match (same major.minor, different patch)
                     xf_patch_diff = []
                     if not xf_exact:
                         xf_patch_diff = [x for x in self.data.xformers
-                                         if xf_torch_match(x, tc["torch"]) and
+                                         if xf_torch_match(x, tc["torch"]) and xf_available(x) and
                                          any(xc.rsplit('.', 1)[0] == cuda_short
                                              for xc in x["cuda"])]
 
@@ -1479,9 +1503,8 @@ class CompatibilityChecker(QMainWindow):
                         if not matching_bnb:
                             continue
 
-                    ecosystem = self.data.torch_ecosystem.get(tc["torch"], {})
-                    torchvision_ver = ecosystem.get("torchvision", "-")
-                    torchaudio_ver = ecosystem.get("torchaudio", "-")
+                    torchvision_ver, torchaudio_ver, ecosystem_tips = self._ecosystem_versions(
+                        tc["torch"], tc["cuda"], py_ver, platform)
 
                     # "Wheel on this platform" status. In Windows mode we've already
                     # filtered out tc.windows == False, so this is always "Yes" in
@@ -1513,6 +1536,7 @@ class CompatibilityChecker(QMainWindow):
                         "torch": tc["torch"],
                         "torchvision": torchvision_ver,
                         "torchaudio": torchaudio_ver,
+                        "ecosystem_tips": ecosystem_tips,
                         "python": py_ver,
                         "cuda": tc["cuda"],
                         "cuda_family": '.'.join(tc["cuda"].split('.')[:2]),
@@ -1567,8 +1591,11 @@ class CompatibilityChecker(QMainWindow):
                     return item
 
                 self.compat_table.setItem(i, 0, make_item(combo["torch"]))
-                self.compat_table.setItem(i, 1, make_item(combo["torchvision"]))
-                self.compat_table.setItem(i, 2, make_item(combo["torchaudio"]))
+                for col, pkg in ((1, "torchvision"), (2, "torchaudio")):
+                    pkg_item = make_item(combo[pkg])
+                    if pkg in combo["ecosystem_tips"]:
+                        pkg_item.setToolTip(combo["ecosystem_tips"][pkg])
+                    self.compat_table.setItem(i, col, pkg_item)
                 self.compat_table.setItem(i, 3, make_item(combo["python"]))
 
                 # CUDA (compatible) — major.minor family
