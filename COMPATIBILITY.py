@@ -109,8 +109,9 @@ GROUND TRUTH SOURCES
 #   NOTE: FA2 has no hard torch pin (setup.py: install_requires=["torch"]).
 #         The CI matrix defines what was built/tested.
 #   NOTE: upstream publishes FA4 betas (fa4-v4.0.0.betaNN) weekly; betas are not tracked.
-#         FA2 resumed with v2.8.3.post2 (2026-10-13, a security fix), not tracked yet:
-#         its assets were still uploading (42 vs post1's 50) and PyPI still had post1.
+#         FA2 resumed with v2.8.3.post2 (2026-10-13: CVE-2026-31253 and CVE-2026-62239 fixes
+#         plus a backward-pass overflow fix), tracked since 2026-10-15: post1's cu12 grid
+#         exactly, with no cu13 wheels.
 #
 # ---- Flash Attention 2 (Windows) ----
 #   Repo: https://github.com/kingbri1/flash-attention
@@ -1208,6 +1209,12 @@ Linux Flash Attention 2
 +--------------+------------------------------------------------------+
 | FA2 Version  | Compatibility (Linux)                                |
 +--------------+------------------------------------------------------+
+| v2.8.3.post2 | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
+| v2.8.3.post2 | torch 2.5.1 + cuda 12.x + cp39-cp313                 |
+| v2.8.3.post2 | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
+| v2.8.3.post2 | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
+| v2.8.3.post2 | torch 2.8.0 + cuda 12.x + cp39-cp313                 |
++--------------+------------------------------------------------------+
 | v2.8.3.post1 | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
 | v2.8.3.post1 | torch 2.5.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.3.post1 | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
@@ -1241,13 +1248,13 @@ Linux Flash Attention 2
 
 # 2.8.3.post1 — TWO TRAPS. Read before touching this data.
 #
-# TRAP 1 (coverage regression, see P8): post1 is the LATEST version on PyPI, so
-# `pip install flash-attn` resolves to it — but it has FEWER wheels than v2.8.3.
-# It DROPPED cu12torch2.9 and cu13torch2.10 entirely. Consequences:
-#   - torch 2.10.0 users must use v2.8.3, NOT the "latest" post1.
-#   - torch 2.9.0 + CUDA 12.x users must use v2.8.3, NOT post1.
-#   - torch 2.9.0 + CUDA 13.x works on both.
-# Asset counts: v2.8.3 = 53, v2.8.3.post1 = 50.
+# TRAP 1 (coverage regression, see P8): post2 is now the LATEST version on PyPI, so
+# `pip install flash-attn` resolves to it — but each post release has FEWER wheels.
+# post1 DROPPED cu12torch2.9 and cu13torch2.10; post2 also dropped cu13torch2.9. Consequences:
+#   - torch 2.10.0 users must use v2.8.3, NOT post1 or post2.
+#   - torch 2.9.0 + CUDA 12.x users must use v2.8.3, NOT post1 or post2.
+#   - torch 2.9.0 + CUDA 13.x works on v2.8.3 and post1, NOT post2.
+# Asset counts: v2.8.3 = 53, v2.8.3.post1 = 50, v2.8.3.post2 = 48.
 #
 # TRAP 2 (filename version, see P6): within the post1 release the asset names are
 # INCONSISTENT. The 48 cu12 assets are named "flash_attn-2.8.3.post1+cu12torch...",
@@ -1256,6 +1263,7 @@ Linux Flash Attention 2
 # the FA2 version straight into the filename produces a 404 for exactly those wheels.
 # This is why flash_attention_linux entries carry an optional "wheel_ver" field:
 #   {"fa2": "2.8.3.post1", ..., "cuda": "13", "wheel_ver": "2.8.3"}
+# post2 does not have this split: all 48 filenames carry "2.8.3.post2", so no wheel_ver.
 #
 # ABI note: post1 cu12 assets exist with BOTH cxx11abiTRUE and cxx11abiFALSE names; the
 # cu13 assets are cxx11abiTRUE only. From torch 2.6 on both names are new-ABI builds

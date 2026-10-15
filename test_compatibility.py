@@ -28,7 +28,7 @@ class CompatibilityData:
                 ("FLASH ATTENTION 2", [
                     "Windows — kingbri1/flash-attention; verified Oct 1 2026 (still v2.8.3).",
                     "Linux — Dao-AILab: cu12 wheels plus select cu13 cp312 wheels.",
-                    "2.8.3.post1 covers FEWER combos than 2.8.3 — none for torch 2.10.0 or 2.9.0+CUDA 12.x.",
+                    "2.8.3.post2 (security fixes) and .post1 cover FEWER combos than 2.8.3 — none for torch 2.10.0 or 2.9.0+CUDA 12.x; post2 has no CUDA 13 wheels.",
                 ]),
             ],
             [
@@ -209,6 +209,21 @@ class CompatibilityData:
         # Its cu13 assets are named "flash_attn-2.8.3+cu13torch2.9...", so those entries
         # carry "wheel_ver" to override the filename version. See COMPATIBILITY.py P6/P8.
         self.flash_attention_linux = [
+            {"fa2": "2.8.3.post2", "python": "3.9", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.10", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.11", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.12", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.13", "torch": "2.6.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.9", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.10", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.11", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.12", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.13", "torch": "2.7.1", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.9", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.10", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.11", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.12", "torch": "2.8.0", "cuda": "12"},
+            {"fa2": "2.8.3.post2", "python": "3.13", "torch": "2.8.0", "cuda": "12"},
             # v2.8.3.post1
             {"fa2": "2.8.3.post1", "python": "3.9", "torch": "2.6.0", "cuda": "12"},
             {"fa2": "2.8.3.post1", "python": "3.10", "torch": "2.6.0", "cuda": "12"},
