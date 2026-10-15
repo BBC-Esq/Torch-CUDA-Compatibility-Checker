@@ -556,7 +556,7 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                                 the evidence is triton-windows' own wheel tags:
 #                                 cp310-cp314 in every 3.7.x and 3.8.x release.
 #                      Neither package has ever shipped a cp315, abi3 or py3-none wheel,
-#                      nor an sdist pip could build from (checked 2026-10-02).
+#                      nor an sdist pip could build from (re-checked 2026-10-15).
 #                      RE-CHECK TRIGGER: any triton or triton-windows release with a
 #                      wheel that installs on 3.15 (a cp315 or abi3 tag), and every new
 #                      torch release (re-read its marker). triton-windows' main-windows
