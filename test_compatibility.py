@@ -584,6 +584,12 @@ class CompatibilityData:
                 "cuda-cupti": "13.4.92", "cublas": "13.8.0.4", "cufft": "12.4.0.43",
                 "curand": "10.4.4.72", "cusolver": "12.3.4.7", "cusparse": "12.8.6.72",
                 "nvtx": "13.4.92", "nvjitlink": "13.4.92"
+            },
+            "13.4.3": {
+                "cuda-nvrtc": "13.4.92", "cuda-runtime": "13.4.92", "cuda-nvcc": "13.4.92",
+                "cuda-cupti": "13.4.92", "cublas": "13.8.0.4", "cufft": "12.4.0.43",
+                "curand": "10.4.4.72", "cusolver": "12.3.5.3", "cusparse": "12.8.6.72",
+                "nvtx": "13.4.92", "nvjitlink": "13.4.92"
             }
         }
 
