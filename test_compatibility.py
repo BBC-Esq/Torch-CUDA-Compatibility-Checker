@@ -1569,7 +1569,7 @@ class CompatibilityChecker(QMainWindow):
                         "cudnn_windows": cudnn_windows,
                         "triton": triton_display,
                         "triton_no_wheel": triton_no_wheel,
-                        "fa2": ", ".join(sorted(fa2_versions, reverse=True)),
+                        "fa2": ", ".join(self._version_sorted(fa2_versions, reverse=True)),
                         "fa2_has_assumed": fa2_has_assumed,
                         "xformers": ", ".join(xf_versions),
                         "xf_has_patch_diff": xf_has_patch_diff,
