@@ -578,6 +578,10 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #   cuda       CUDA MAJOR ("12"/"13") of the torch wheel this FA2 wheel pairs with.
 #   wheel_ver  OPTIONAL. The version string as it appears in the ASSET FILENAME, when it
 #              differs from the release version (see P6). Defaults to the "fa2" value.
+#   assumed    OPTIONAL. True = built against this minor's other patch (asset names carry
+#              only the minor): 2.7.0 rows use 2.7.1 builds, 2.9.0 rows use 2.9.1 builds.
+#              Both patches export every torch symbol the wheels import (measured
+#              2026-10-23). The cell's version sort ignores the "*".
 #
 # cuda_metapackages{} :
 #   Keyed by CUDA version. Each value maps the program's own field names to component
@@ -1222,15 +1226,15 @@ Linux Flash Attention 2
 | v2.8.3.post1 | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
 | v2.8.3.post1 | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.3.post1 | torch 2.8.0 + cuda 12.x + cp39-cp313                 |
-| v2.8.3.post1 | torch 2.9.0 + cuda 13.x + cp312 (x86_64, aarch64) *! |
+| v2.8.3.post1 | torch 2.9.1 + cuda 13.x + cp312 (x86_64, aarch64) *! |
 +--------------+------------------------------------------------------+
 | v2.8.3       | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
 | v2.8.3       | torch 2.5.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.3       | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
 | v2.8.3       | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 | v2.8.3       | torch 2.8.0 + cuda 12.x + cp39-cp313                 |
-| v2.8.3       | torch 2.9.0 + cuda 12.x + cp312 (x86_64, aarch64) ** |
-| v2.8.3       | torch 2.9.0 + cuda 13.x + cp312 (x86_64) **          |
+| v2.8.3       | torch 2.9.1 + cuda 12.x + cp312 (x86_64, aarch64) ** |
+| v2.8.3       | torch 2.9.1 + cuda 13.x + cp312 (x86_64) **          |
 | v2.8.3       | torch 2.10.0 + cuda 13.x + cp312 (x86_64,aarch64) ** |
 +--------------+------------------------------------------------------+
 | v2.8.2       | torch 2.4.0 + cuda 12.x + cp39-cp312                 |
@@ -1238,8 +1242,11 @@ Linux Flash Attention 2
 | v2.8.2       | torch 2.6.0 + cuda 12.6 only + cp39-cp313 (P11)      |
 | v2.8.2       | torch 2.7.1 + cuda 12.x + cp39-cp313                 |
 +--------------+------------------------------------------------------+
-** torch 2.9.0/2.10.0 are NOT in the v2.8.3 publish.yml CI matrix (which only has up to
-   2.8.0). These wheels were added to the GitHub release later (manually or via re-run).
+Each wheel serves its whole torch minor; the program also lists the minor's other patch,
+marked * (2.7.0, 2.9.0). See "assumed" in SCHEMA.
+** torch 2.9.1/2.10.0 are NOT in the v2.8.3 publish.yml CI matrix (which only has up to
+   2.8.0). These wheels were added to the GitHub release later (manually or via re-run),
+   all after main's publish.yml began naming torch 2.9.1 (fbf24f6, 2025-11-13).
    The cu13 wheels (cp312) are for use with CUDA 13.x torch builds.
    This is the same out-of-matrix phenomenon as torch 2.9.0/cu129 (P7/P16), but it is
    NOT rendered with the "†" marker. The marker lives on torch_cuda rows, where the
@@ -1254,8 +1261,8 @@ Linux Flash Attention 2
 # `pip install flash-attn` resolves to it — but each post release has FEWER wheels.
 # post1 DROPPED cu12torch2.9 and cu13torch2.10; post2 also dropped cu13torch2.9. Consequences:
 #   - torch 2.10.0 users must use v2.8.3, NOT post1 or post2.
-#   - torch 2.9.0 + CUDA 12.x users must use v2.8.3, NOT post1 or post2.
-#   - torch 2.9.0 + CUDA 13.x works on v2.8.3 and post1, NOT post2.
+#   - torch 2.9.x + CUDA 12.x users must use v2.8.3, NOT post1 or post2.
+#   - torch 2.9.x + CUDA 13.x works on v2.8.3 and post1, NOT post2.
 # Asset counts: v2.8.3 = 53, v2.8.3.post1 = 50, v2.8.3.post2 = 48.
 #
 # TRAP 2 (filename version, see P6): within the post1 release the asset names are
@@ -1306,10 +1313,12 @@ WINDOWS Flash Attention 2
 | v2.8.3       | torch 2.9.1*+ cuda 12.8 + cp310-cp313                |
 | v2.8.3       | torch 2.9.0 + cuda 12.8 + cp310-cp313                |
 | v2.8.3       | torch 2.8.0 + cuda 12.8 + cp310-cp313                |
+| v2.8.3       | torch 2.7.1*+ cuda 12.8 + cp310-cp313                |
 | v2.8.3       | torch 2.7.0 + cuda 12.8 + cp310-cp313                |
 | v2.8.3       | torch 2.6.0 + cuda 12.4 + cp311 only                 |
 +--------------+------------------------------------------------------+
 | v2.8.2       | torch 2.8.0 + cuda 12.8 + cp310-cp313                |
+| v2.8.2       | torch 2.7.1*+ cuda 12.8 + cp310-cp313                |
 | v2.8.2       | torch 2.7.0 + cuda 12.8 + cp310-cp313                |
 | v2.8.2       | torch 2.6.0 + cuda 12.4 + cp310-cp313                |
 +--------------+------------------------------------------------------+
