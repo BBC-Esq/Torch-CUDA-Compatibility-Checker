@@ -645,7 +645,7 @@ class CompatibilityChecker(QMainWindow):
     def _version_sorted(values, reverse=False):
         def key(value):
             parts = []
-            for seg in str(value).split("."):
+            for seg in str(value).rstrip("*~").split("."):
                 m = re.match(r"(\d+)", seg)
                 parts.append((int(m.group(1)), seg[m.end():]) if m else (0, seg))
             return parts
