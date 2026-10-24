@@ -26,7 +26,7 @@ class CompatibilityData:
                     "\"CUDA (torch-tested)\" is the exact version PyTorch built against.",
                 ]),
                 ("FLASH ATTENTION 2", [
-                    "Windows — kingbri1/flash-attention; verified Oct 1 2026 (still v2.8.3).",
+                    "Windows — kingbri1/flash-attention; verified Oct 23 2026 (still v2.8.3).",
                     "Linux — Dao-AILab: cu12 wheels plus select cu13 cp312 wheels.",
                     "2.8.3.post2 (security fixes) and .post1 cover FEWER combos than 2.8.3 — none for torch 2.10.0 or 2.9.x+CUDA 12.x; post2 has no CUDA 13 wheels.",
                 ]),
@@ -162,7 +162,7 @@ class CompatibilityData:
         # Windows Flash Attention 2 compatibility data
         # Ground truth: release assets from https://github.com/kingbri1/flash-attention/releases
         # Build matrix: build-wheels.yml (workflow_dispatch, manually triggered)
-        # LAST VERIFIED: October 1, 2026 — re-confirmed still v2.8.3; no newer release
+        # LAST VERIFIED: October 23, 2026 — re-confirmed still v2.8.3; no newer release
         # CUDA values here match the torch_cuda entries (for matching), not the FA2 build CUDA.
         self.flash_attention = [
             {"fa2": "2.8.3", "python": "3.10", "torch": "2.9.1", "cuda": "12.8.1", "assumed": True},
@@ -307,7 +307,7 @@ class CompatibilityData:
         # FA2 Windows wheel availability: (fa2_version, cu_moniker, torch_build_version) -> [python_versions]
         # Used to construct download URLs from https://github.com/kingbri1/flash-attention/releases
         # Ground truth: build-wheels.yml from kingbri1/flash-attention (main branch)
-        # LAST VERIFIED: October 1, 2026 — still v2.8.3 (17 assets); check releases for newer wheels
+        # LAST VERIFIED: October 23, 2026 — still v2.8.3 (17 assets); check releases for newer wheels
         self.fa2_windows_wheels = {
             ("2.8.3", "cu124", "2.6.0"): ["3.11"],
             ("2.8.3", "cu128", "2.7.0"): ["3.10", "3.11", "3.12", "3.13"],

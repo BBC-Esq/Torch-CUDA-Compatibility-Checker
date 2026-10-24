@@ -897,12 +897,12 @@ DEFERRED — EXISTS UPSTREAM, DELIBERATELY NOT TRACKED YET
 # deferred into actionable. Delete the entry once its trigger fires and it is added.
 #
 # --- flash-attention FA4 betas (fa4-v4.0.0.betaNN) ---  deferred, ongoing
-#   Weekly cadence; beta30 published 2026-09-09 while FA2 2.x sits idle.
+#   Weekly cadence; beta36 published 2026-10-21.
 #   WHY DEFERRED: prereleases, filtered by P4. Also only 2 assets each, versus 50+ for
 #   an FA2 release — not a compatibility matrix.
 #   RE-CHECK TRIGGER: an FA4 release whose VERSION carries no beta/rc/alpha segment
 #   (a plain fa4-v4.0.0 tag, or a flash-attn-4 PyPI version that is not a PEP 440
-#   prerelease and not fully yanked), or FA2 2.x resuming releases.
+#   prerelease and not fully yanked).
 #   JUDGE BY THE VERSION STRING, NOT BY FLAGS. Two decoys already look like the trigger:
 #     - GitHub marks fa4-v4.0.0.beta0, beta1, beta2 and beta4 (all 2026-03-05) as
 #       prerelease:false even though they are betas; beta5 onward are flagged true.
@@ -1300,7 +1300,7 @@ WINDOWS Flash Attention 2
 # The build-wheels.yml also builds Linux wheels (ubuntu-22.04), but those are separate
 # from the official Dao-AILab Linux FA2 wheels built via publish.yml.
 #
-# LAST VERIFIED: October 1, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
+# LAST VERIFIED: October 23, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
 # no newer kingbri1 release exists. Data below re-confirmed unchanged.
 # Windows FA2 compatibility data may be outdated. The table below was last verified
 # against release assets on the date above. Check kingbri1/flash-attention releases
