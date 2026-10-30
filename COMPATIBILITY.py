@@ -20,6 +20,9 @@ GROUND TRUTH SOURCES
 #     have been made in this one file. Then HEAD-check the wheel index.
 #   Per-wheel Windows/Linux/Python availability (authoritative over the build script):
 #     https://download.pytorch.org/whl/{MONIKER}/torch/      (403 = wheel absent)
+#     Path shapes differ on that host: torch wheels sit at /whl/{MONIKER}/{file},
+#     torchvision/torchaudio have their own /whl/{MONIKER}/{pkg}/ listings, and triton
+#     wheels sit at /whl/{file} with no moniker. Read the listing's href; never build it.
 #   Triton pin for that torch release:
 #     https://raw.githubusercontent.com/pytorch/pytorch/v{VER}/.ci/docker/triton_version.txt
 #   Sympy: the loose spec a user actually resolves. Through torch 2.13.0 it lived in
@@ -36,7 +39,8 @@ GROUND TRUTH SOURCES
 #     https://pypi.org/pypi/torchvision/json
 #     https://pypi.org/pypi/torchaudio/json
 #   NOTE: torchaudio entered maintenance mode after 2.11.0. There may be no
-#         matching torchaudio release for newer torch versions.
+#         matching torchaudio release for newer torch versions: 2.12.0-2.14.1
+#         have none, and 2.15.0 pairs with torchaudio 2.11.1.
 #
 # ---- CUDA metapackages ----
 #   Per-version redistribution JSON:
@@ -188,11 +192,12 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #     (2.13.0 cu129: linux_x86_64 = 403, manylinux_2_28_x86_64 = 200). Before
 #     concluding absence, confirm the same filename pattern returns 200 on a moniker
 #     that does ship, or list the index and read the real names.
-#   - A moniker's INDEX PAGE can return 200 with no wheels for it. From 2026-09-17,
-#     download.pytorch.org/whl/cu134/torch/ served a stale generic listing (98 legacy
-#     wheels, newest torch 2.0.1) with zero "%2Bcu134" entries, while never-used
-#     monikers (cu133, cu199) returned 403. The page existing proves nothing: grep it
-#     for "%2Bcu{moniker}". No torch cu134 wheel existed as of 2026-09-24.
+#   - A moniker's INDEX PAGE can return 200 with no wheels for it. From 2026-09-17 until
+#     torch 2.15.0 shipped (2026-10-28), download.pytorch.org/whl/cu134/torch/ served a
+#     stale generic listing (98 legacy wheels, newest torch 2.0.1) with zero "%2Bcu134"
+#     entries, while never-used monikers (cu133, cu199) returned 403. cu134 now holds
+#     real wheels; cu128/cu129 are the live example (200, no 2.15.0 entry). The page
+#     existing proves nothing: grep it for "%2Bcu{moniker}" AND the version.
 #
 #
 # --- P2. The Windows arch-exclusion idiom CHANGED between releases. ---
@@ -209,6 +214,8 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #   For 2.14 that conclusion is accidentally correct (the constant is empty, so all of
 #   12.6/13.0/13.2 build for Windows) — but it is correct by luck. Add one version to
 #   that constant and the same grep silently produces bogus windows=True data.
+#   That happened at 2.15.0: CUDA_ARCHES_NO_WINDOWS = ["13.0"], the first non-empty
+#   value in a stable release (13.0 shipped no stable wheel on either platform anyway).
 #   ALWAYS resolve the CONSTANT'S VALUE, not just the shape of the exclusion call.
 #   Grep for ALL THREE, plus any future variant, by searching the `elif os == "windows":`
 #   branch directly rather than for a specific helper name:
@@ -544,26 +551,30 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                      exists for them, though torch itself installs there. The Triton
 #                      cell shows "N/A" with a tooltip, a selected Triton filter drops
 #                      those rows, and the install commands omit the Triton block.
-#                      Set to ["3.15"] on 2.14.1, 2.14.0 and 2.13.0 (2026-10-02).
+#                      Set to ["3.15"] on 2.14.1, 2.14.0 and 2.13.0 (2026-10-02). 2.15.0
+#                      needs none: triton 3.9.0 and triton-windows 3.9.0.post30 ship
+#                      cp311 and cp312-abi3 wheels.
 #                      GROUND TRUTH differs by platform (see P14):
 #                        Linux    torch's own wheel metadata via PEP 658 (append
 #                                 .metadata to a wheel URL from the
 #                                 download.pytorch.org/whl/{moniker}/torch/ listing):
 #                                 2.13.0 triton==3.7.1 and 2.14.x triton~=3.8.0, each
-#                                 with the marker python_version < "3.15". 2.12.1 has
-#                                 no such marker, and no 3.15 wheels.
+#                                 with the marker python_version < "3.15"; 2.15.0
+#                                 triton~=3.9.0 with < "3.16". 2.12.1 has no such
+#                                 marker, and no 3.15 wheels.
 #                        Windows  torch wheels declare no triton dependency at all, so
 #                                 the evidence is triton-windows' own wheel tags:
 #                                 cp310-cp314 in every 3.7.x and 3.8.x release.
-#                      Neither package has ever shipped a cp315, abi3 or py3-none wheel,
-#                      nor an sdist pip could build from (re-checked 2026-10-15).
-#                      RE-CHECK TRIGGER: any triton or triton-windows release with a
-#                      wheel that installs on 3.15 (a cp315 or abi3 tag), and every new
-#                      torch release (re-read its marker). triton-windows' main-windows
-#                      branch already carries ABI3 build work (commit 445ba28a), so abi3
-#                      is the likely first change. If only one platform gains a 3.15
-#                      wheel, this single list goes wrong for the other and has to
-#                      become per-platform.
+#                      The 3.7.x/3.8.x pins have no 3.15 wheel on PyPI or for Windows,
+#                      and no sdist (re-checked 2026-10-30). download.pytorch.org/whl/
+#                      triton/ does carry cp315 wheels for 3.7.1 and 3.8.0, but the
+#                      emitted Linux command installs triton from PyPI, so the list is
+#                      right for the command the program emits. Class 5 (all 14 pins,
+#                      from PEP 658 metadata) swept clean 2026-10-28.
+#                      RE-CHECK TRIGGER: a new 3.7.x/3.8.x build with a 3.15 wheel on
+#                      PyPI or for Windows, every new torch release (re-read its
+#                      marker), or the triton line gaining --index-url. Then this list
+#                      must become per-platform: Windows still has no 3.15 wheel.
 #   torchvision_no_python  OPTIONAL. Pythons torch supports but its torchvision has no
 #                      wheel for; the cell reads "N/A" and the install command omits it.
 #                      ["3.15"] on 2.13.0: torchvision 0.28.0 stops at cp314.
@@ -614,6 +625,9 @@ Torch and CUDA Compatibility
 # differs on the rows marked "Win:" below (P22).
 +--------+---------+--------+------------+
 | Torch  | Moniker | CUDA   | cuDNN      |
++--------+---------+--------+------------+
+| 2.15.0 | cu134   | 13.4.1 | 9.26.0.51  | <-- new moniker; cu126 dropped (no CUDA 12 build)
+|        | cu132   | 13.2.2 | 9.26.0.51  |
 +--------+---------+--------+------------+
 |        | cu132   | 13.2.2 | 9.24.0.43  | <-- 13.2.2 (2.14.0 used 13.2.1)
 | 2.14.1 | cu130   | 13.0.3 | 9.24.0.43  |
@@ -706,6 +720,25 @@ Torch and CUDA Compatibility
 #   - Triton pin bumped 3.7.0 -> 3.7.1.
 #   - Python 3.13 free-threaded (3.13t) dropped; list is 3.10-3.14 + 3.14t.
 #   - torchvision 0.27.1 pins torch==2.12.1.
+#
+# Torch 2.15.0 changes:
+#   - Wheel matrix: cu132 (CUDA 13.2.2) and cu134 (CUDA 13.4.1), Linux and Windows.
+#     cu126 DROPPED, so no CUDA 12 build remains; cu134 is new.
+#   - CUDA_ARCHES also lists 13.0, held on nightly (pytorch/test-infra#8989), so no stable
+#     cu130 wheel exists. Do NOT add "13.0" to cuda_versions; P18 rejects it.
+#   - CUDA_ARCHES_NO_WINDOWS = ["13.0"], the first non-empty value in a stable release (P2).
+#   - CUDA_STABLE = "13.2", so the PyPI default is now cu132.
+#   - Python 3.11-3.15 on both platforms (+3.14t/3.15t). 3.10 DROPPED: requires_python
+#     >=3.11 and no cp310 wheel on either moniker.
+#   - cuDNN 9.26.0.51 on both monikers, not the newest 9.27.0.42. The Windows wheels
+#     bundle the same version (cudnn64_9.dll version resource; a CRC search agrees), so
+#     cudnn_windows is omitted.
+#   - Triton pin 3.9.0, marker python_version < "3.16"; sympy>=1.13.3.
+#   - torchvision 0.29.2 (torch>=2.14.0) and torchaudio 2.11.1 (torch>=2.11), both
+#     py3-none and published only on cu132/cu134. Do NOT bump 2.14.x to them: neither has
+#     a cu126 or cu130 wheel.
+#   - No FA2 or xformers build exists for torch 2.15, and bitsandbytes stops at CUDA 13.2.
+#   Source: https://github.com/pytorch/pytorch/releases/tag/v2.15.0
 #
 # Torch 2.14.1 changes (a patch release that is NEARLY, but not exactly, a copy of 2.14.0):
 #   - The ONLY build-matrix delta vs v2.14.0 is CUDA_ARCHES_FULL_VERSION["13.2"]: 13.2.1 ->
@@ -961,7 +994,7 @@ cuDNN & CUDA
 * The Windows driver column reads N/A for the CUDA 13.x build. That is NVIDIA's
   claim about the standalone product. NVIDIA nonetheless publishes Windows CUDA 13
   builds (redistrib manifests, nvidia-cudnn-cu13 win_amd64 wheels), and PyTorch's
-  Windows cu130/cu132 wheels bundle them. See GROUND TRUTH SOURCES and P21.
+  Windows cu130/cu132/cu134 wheels bundle them. See GROUND TRUTH SOURCES and P21.
 
 * taken from https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/support-matrix.html
   Every release is also archived at a versioned URL:
@@ -976,7 +1009,8 @@ cuDNN & CUDA
 * current cuDNN release as of last check: 9.27.0.42 (2026-09-29, cu12 and cu13, not yanked)
   NOTE: 9.25.0.15 exists on PyPI but every file is YANKED — not a valid "latest".
   9.25.1.1 was the fixed republish of that yanked build. torch 2.14.0 and 2.14.1
-  both pin 9.24.0.43 for cu130/cu132 and 9.10.2.21 for cu126.
+  both pin 9.24.0.43 for cu130/cu132 and 9.10.2.21 for cu126. torch 2.15.0 pins
+  9.26.0.51 on cu132/cu134, older than the newest release.
 
 
 *****************************
@@ -991,6 +1025,8 @@ WINDOWS-SPECIFIC LIMITATIONS
 +--------+--------+-----------------------------------------------+
 | Torch  | Wheel  | Windows Status                                |
 +--------+--------+-----------------------------------------------+
+| 2.15.0 | cu132  | Full support (cuDNN bundled in the wheel)     |
+| 2.15.0 | cu134  | Full support (cuDNN bundled in the wheel)     |
 | 2.14.1 | cu126  | Full support                                  |
 | 2.14.1 | cu130  | Full support (cuDNN bundled in the wheel)     |
 | 2.14.1 | cu132  | Full support (cuDNN bundled in the wheel)     |
@@ -1107,6 +1143,9 @@ Triton, Torch, and Python
 #           The README summary table reads "3.8 | 12.9", true of the BASE ptxas only.
 #           That JSON also carries a windows-arm64 block pulling CUDA 13.4 from
 #           packages.nvidia.com/prerelease/ — prerelease, see P20, NOT a metapackage.
+#   3.9.x → identical to 3.8.x except ptxas-blackwell 13.4.59 (was 13.3.33). The README
+#           table reads "3.8 .. 3.9 | 12.9", the base ptxas only. Its windows-arm64
+#           block pins CUDA 13.4 components instead of a prerelease installer.
 #
 #   CORRECTION (2026-08-03): this file previously said "3.7.x → CUDA 12.8 tools
 #   (same bundle as 3.3-3.6)". That was WRONG. It came from the README's coarse
@@ -1129,6 +1168,7 @@ Triton, Torch, and Python
 +--------------------------+----------------+-------------------------------+
 | Release                  | Compatible     | Notes                         |
 +--------------------------+----------------+-------------------------------+
+| v3.9.0-windows.post30    | torch>=2.15    | README maps torch 2.15 -> 3.9 |
 | v3.8.0-windows.post29    | torch>=2.14    | README maps torch 2.14 -> 3.8 |
 | v3.7.1-windows.post27    | torch>=2.12    | README maps torch 2.12 AND    |
 | v3.7.0-windows.post26    | torch>=2.12    | 2.13 to triton 3.7            |
@@ -1142,8 +1182,8 @@ Triton, Torch, and Python
   an open-ended range. The triton-windows README states each PyTorch minor version
   "is only guaranteed to work with a specific Triton minor version" and gives a
   strict 1:1 map: 2.6->3.2, 2.7->3.3, 2.8->3.4, 2.9->3.5, 2.10->3.6, 2.11->3.6,
-  2.12->3.7, 2.13->3.7, 2.14->3.8. Do NOT read "torch>=2.12" as "also works on 2.14";
-  the README's only >= claim is a caveat about forcing 3.2 on an old GPU.
+  2.12->3.7, 2.13->3.7, 2.14->3.8, 2.15->3.9. Do NOT read "torch>=2.12" as "also
+  works on 2.14"; the README's only >= claim is a caveat about forcing 3.2 on an old GPU.
 * Turing (GTX 16xx/RTX 20xx) and Volta (V100) support was dropped in upstream
   Triton 3.3. If you must use Turing, stick with triton-windows 3.2.x.
   VERIFIED 2026-09-09 against primary sources, because a third-party wheel index
@@ -1171,6 +1211,7 @@ Triton, Torch, and Python
 +-------+----------------------------+-------------+--------+
 | Torch | CUDA                       | Triton Pin  | Sympy  |
 +-------+----------------------------+-------------+--------+
+| 2.15.0| cu132, cu134               | 3.9.0       | 1.13.3 |
 | 2.14.1| cu126, cu130, cu132        | 3.8.0       | 1.13.3 |
 | 2.14.0| cu126, cu130, cu132        | 3.8.0       | 1.13.3 |
 | 2.13.0| cu126, cu129, cu130, cu132 | 3.7.1       | 1.13.3 |
