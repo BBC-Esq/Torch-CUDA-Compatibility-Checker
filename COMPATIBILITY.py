@@ -545,7 +545,9 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #   triton_compat      all triton minors known-compatible (README-level), vs "triton"
 #                      which is torch's exact hard pin.
 #   python_linux_only  Python versions present ONLY in Linux wheels (see P14). Filtered
-#                      out when the platform toggle is set to Windows.
+#                      out when the platform toggle is set to Windows. "python" and this
+#                      field were swept against every index's wheel tags on 2026-10-29:
+#                      85/85 cells, uniform across monikers and CPU arch (class 4).
 #   triton_no_python   OPTIONAL. Pythons the row's torch supports but its pinned triton
 #                      does not: no triton (Linux) or triton-windows (Windows) wheel
 #                      exists for them, though torch itself installs there. The Triton
@@ -935,7 +937,7 @@ DEFERRED — EXISTS UPSTREAM, DELIBERATELY NOT TRACKED YET
 # deferred into actionable. Delete the entry once its trigger fires and it is added.
 #
 # --- flash-attention FA4 betas (fa4-v4.0.0.betaNN) ---  deferred, ongoing
-#   Weekly cadence; beta36 published 2026-10-21.
+#   Weekly cadence; beta37 published 2026-10-28.
 #   WHY DEFERRED: prereleases, filtered by P4. Also only 2 assets each, versus 50+ for
 #   an FA2 release — not a compatibility matrix.
 #   RE-CHECK TRIGGER: an FA4 release whose VERSION carries no beta/rc/alpha segment
@@ -1346,7 +1348,7 @@ WINDOWS Flash Attention 2
 # The build-wheels.yml also builds Linux wheels (ubuntu-22.04), but those are separate
 # from the official Dao-AILab Linux FA2 wheels built via publish.yml.
 #
-# LAST VERIFIED: October 23, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
+# LAST VERIFIED: October 30, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
 # no newer kingbri1 release exists. Data below re-confirmed unchanged.
 # Windows FA2 compatibility data may be outdated. The table below was last verified
 # against release assets on the date above. Check kingbri1/flash-attention releases
