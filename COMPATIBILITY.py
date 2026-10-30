@@ -572,9 +572,9 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                      right for the command the program emits. Class 5 (all 14 pins,
 #                      from PEP 658 metadata) swept clean 2026-10-28.
 #                      RE-CHECK TRIGGER: a new 3.7.x/3.8.x build with a 3.15 wheel on
-#                      PyPI or for Windows, every new torch release (re-read its
-#                      marker), or the triton line gaining --index-url. Then this list
-#                      must become per-platform: Windows still has no 3.15 wheel.
+#                      PyPI or for Windows, and every new torch release (re-read its
+#                      marker). The triton line stays on PyPI by owner decision; see
+#                      OUT OF SCOPE BY OWNER DECISION under VERSION SCOPE POLICY.
 #   torchvision_no_python  OPTIONAL. Pythons torch supports but its torchvision has no
 #                      wheel for; the cell reads "N/A" and the install command omits it.
 #                      ["3.15"] on 2.13.0: torchvision 0.28.0 stops at cp314.
@@ -907,6 +907,11 @@ VERSION SCOPE POLICY  (what belongs in the program at all)
 #   flash-attn-3   FlashAttention 3. On PyPI, and on PyTorch's cu126/cu128/cu129/cu130
 #                  indexes (Windows wheels on cu126-cu129). Excluded 2026-10-05: the owner
 #                  does not use it.
+#   PyTorch triton The triton builds on download.pytorch.org/whl/triton/ (3.7.1/3.8.0
+#                  differ from PyPI's files and add cp315). The Triton column and triton
+#                  line use only PyPI's triton and triton-windows. Settled 2026-10-30: do
+#                  not add --index-url to the triton line to reach cp315 for torch
+#                  2.13/2.14, whose own metadata leaves triton out on Python 3.15.
 #   The owner has also said the current scope (the libraries above, on Windows and
 #   Linux) is enough. Do not propose new libraries, platforms or hardware targets.
 #
