@@ -233,7 +233,7 @@ PITFALLS AND INSTITUTIONAL KNOWLEDGE  (READ BEFORE UPDATING)
 #     2.12.0 -> n/a (12.9 not in CUDA_ARCHES at all)
 #     2.12.1 -> ABSENT (403)
 #     2.13.0 -> ABSENT (403)
-#     2.14.0 -> n/a (12.9 not in CUDA_ARCHES at all; RC-only as of 2026-08-29)
+#     2.14.0 -> n/a (12.9 not in CUDA_ARCHES at all)
 #
 #
 # --- P3. cuDNN pins are per-CUDA-arch and live in a DIFFERENT dict. ---
@@ -695,6 +695,8 @@ Torch and CUDA Compatibility
   Windows AND Linux wheels (verified HTTP 200) and are NOT excluded from the Windows build.
 * CUDA 11.8.0 is the scope floor. torch 2.6.0/2.7.x also build for older CUDA in some
   channels; anything below 11.8 is deliberately out of scope (see VERSION SCOPE POLICY).
+* Re-verified: Windows availability for all 47 rows on 2026-10-31 (class 1); the cuDNN
+  column against each release's build matrix on 2026-11-03, 47/47 (class 3).
 
 # GPU architecture notes (torch 2.11.0+):
 #   - Volta (SM 7.0, e.g. V100) support was removed from cu128 and cu129 builds
@@ -938,7 +940,7 @@ DEFERRED — EXISTS UPSTREAM, DELIBERATELY NOT TRACKED YET
 # deferred into actionable. Delete the entry once its trigger fires and it is added.
 #
 # --- flash-attention FA4 betas (fa4-v4.0.0.betaNN) ---  deferred, ongoing
-#   Weekly cadence; beta37 published 2026-10-28.
+#   Weekly cadence; beta38 published 2026-11-04.
 #   WHY DEFERRED: prereleases, filtered by P4. Also only 2 assets each, versus 50+ for
 #   an FA2 release — not a compatibility matrix.
 #   RE-CHECK TRIGGER: an FA4 release whose VERSION carries no beta/rc/alpha segment
@@ -986,11 +988,11 @@ cuDNN & CUDA
   >= 615.71.09 (CUDA 13.x build, as of cuDNN 9.26.0; it was >= 580.65.06
   through 9.25.1). NVIDIA gives ONE value for the whole 13.0-13.4 row, so it
   does not say whether a 580-series driver still works for 13.0-13.3.
-* Recommended for tuning heuristics: cuDNN 9.27.0 + CUDA 13.4.1 (Linux).
+* Recommended for tuning heuristics: cuDNN 9.28.0 + CUDA 13.4.1 (Linux).
   (Verbatim from the support matrix: "For best performance, the recommended
-  configuration is cuDNN 9.27.0 with CUDA 13.4.1. This is the configuration used
+  configuration is cuDNN 9.28.0 with CUDA 13.4.1. This is the configuration used
   for tuning heuristics.")
-* 9.27.0 names 13.4.1 twice in the 13.x row: in the toolkit list ("13.4.1 13.4 13.3
+* 9.28.0 names 13.4.1 twice in the 13.x row: in the toolkit list ("13.4.1 13.4 13.3
   13.2 13.1 13.0") and as the sole entry under "Supports static linking?". That is a
   patch inside the 13.0-13.4 range above, so the range does not change, and the
   driver minimums and footnote [4] are unchanged from 9.26.0. Flattened to text, the
@@ -1014,11 +1016,12 @@ cuDNN & CUDA
   which values changed in the new release and separates a real change from an old
   value that was misread. Parse the table <td> by <td>: flattened to text, the
   static-linking and compute-capability columns read like extra CUDA toolkit versions.
-* current cuDNN release as of last check: 9.27.0.42 (2026-09-29, cu12 and cu13, not yanked)
+* current cuDNN release as of last check: 9.28.0.42 (2026-11-04, cu12 and cu13, not yanked)
   NOTE: 9.25.0.15 exists on PyPI but every file is YANKED — not a valid "latest".
   9.25.1.1 was the fixed republish of that yanked build. torch 2.14.0 and 2.14.1
   both pin 9.24.0.43 for cu130/cu132 and 9.10.2.21 for cu126. torch 2.15.0 pins
   9.26.0.51 on cu132/cu134, older than the newest release.
+  9.26.1.1 (2026-10-07) is a back-patch of 9.26 published after 9.27.0.42; nothing pins it.
 
 
 *****************************
@@ -1438,6 +1441,8 @@ Xformers
   index. A completeness audit per P17 will report 0.0.32 as "tracked but not upstream"
   — that is expected, not a defect.
 * The xformers list is complete from the 0.0.29.post2 floor onward (audited 2026-08-29).
+* xformers and bitsandbytes matrix values (torch, CUDA, FA2 range, Python) re-derived
+  2026-11-01: 85/85 cells, 0 mismatches (class 8).
 
 
 **************
