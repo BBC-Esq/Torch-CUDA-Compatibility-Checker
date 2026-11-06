@@ -812,10 +812,10 @@ Torch and CUDA Compatibility
 
 # "Metapackage" component versions per CUDA release version.
 # Row-per-version (was column-per-version; transposed once the list grew past ~12).
-# COMPLETE for every CUDA release from 11.8.0 onward (40 versions as of 2026-10-15).
+# COMPLETE for every CUDA release from 11.8.0 onward (41 versions as of 2026-11-06).
 # Every value was generated directly from the redistribution JSONs and re-verified
-# (428 values, 0 mismatches). Regenerate rather than hand-edit — see the enumerate
-# command in GROUND TRUTH SOURCES.
+# (450 values, 0 mismatches, 2026-11-06; class 7). Regenerate rather than hand-edit —
+# see the enumerate command in GROUND TRUTH SOURCES.
 # There is no 12.7.x — NVIDIA never released it. 11.8.0 shows "-" for nvjitlink
 # because nvJitLink did not exist until CUDA 12.0.
 +--------+----------+----------+----------+----------+------------+------------+------------+------------+------------+----------+-----------+
@@ -861,6 +861,7 @@ Torch and CUDA Compatibility
 | 13.4.1 | 13.4.59  | 13.4.49  | 13.4.59  | 13.4.58  | 13.7.0.27  | 12.4.0.34  | 10.4.4.49  | 12.3.2.15  | 12.8.6.49  | 13.4.49  | 13.4.52   |
 | 13.4.2 | 13.4.92  | 13.4.92  | 13.4.92  | 13.4.92  | 13.8.0.4   | 12.4.0.43  | 10.4.4.72  | 12.3.4.7   | 12.8.6.72  | 13.4.92  | 13.4.92   |
 | 13.4.3 | 13.4.92  | 13.4.92  | 13.4.92  | 13.4.92  | 13.8.0.4   | 12.4.0.43  | 10.4.4.72  | 12.3.5.3   | 12.8.6.72  | 13.4.92  | 13.4.92   |
+| 13.5.0 | 13.5.37  | 13.5.37  | 13.5.37  | 13.5.25  | 13.10.0.20 | 12.5.0.14  | 10.4.5.25  | 12.4.1.2   | 12.9.4.2   | 13.5.25  | 13.5.37   |
 +--------+----------+----------+----------+----------+------------+------------+------------+------------+------------+----------+-----------+
 * Obtained from: https://developer.download.nvidia.com/compute/cuda/redist/redistrib_{X.Y.Z}.json
 * Human-readable cross-check: https://docs.nvidia.com/cuda/archive/{X.Y.Z}/cuda-toolkit-release-notes/index.html
