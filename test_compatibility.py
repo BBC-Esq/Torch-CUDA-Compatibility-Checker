@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import shutil
 import tempfile
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QHBoxLayout, QFormLayout, QLabel, QComboBox,
@@ -638,8 +639,13 @@ class CompatibilityData:
 
 
 def get_settings_path():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(script_dir, "settings.ini")
+    path = os.path.normpath(QSettings(QSettings.IniFormat, QSettings.UserScope,
+                                      "BlairChintella", "TorchCUDAChecker").fileName())
+    legacy = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.ini")
+    if not os.path.exists(path) and os.path.exists(legacy):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copyfile(legacy, path)
+    return path
 
 
 class CompatibilityChecker(QMainWindow):
