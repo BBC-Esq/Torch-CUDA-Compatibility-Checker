@@ -27,7 +27,7 @@ class CompatibilityData:
                     "\"CUDA (torch-tested)\" is the exact version PyTorch built against.",
                 ]),
                 ("FLASH ATTENTION 2", [
-                    "Windows — kingbri1/flash-attention; verified Oct 30 2026 (still v2.8.3).",
+                    "Windows — kingbri1/flash-attention; verified Nov 19 2026 (still v2.8.3).",
                     "Linux — Dao-AILab: cu12 wheels plus select cu13 cp312 wheels.",
                     "2.8.3.post2 (security fixes) and .post1 cover FEWER combos than 2.8.3 — none for torch 2.10.0 or 2.9.x+CUDA 12.x; post2 has no CUDA 13 wheels.",
                 ]),
@@ -169,7 +169,7 @@ class CompatibilityData:
         # Windows Flash Attention 2 compatibility data
         # Ground truth: release assets from https://github.com/kingbri1/flash-attention/releases
         # Build matrix: build-wheels.yml (workflow_dispatch, manually triggered)
-        # LAST VERIFIED: October 30, 2026 — re-confirmed still v2.8.3; no newer release
+        # LAST VERIFIED: November 19, 2026 — re-confirmed still v2.8.3; no newer release
         # CUDA values here match the torch_cuda entries (for matching), not the FA2 build CUDA.
         self.flash_attention = [
             {"fa2": "2.8.3", "python": "3.10", "torch": "2.9.1", "cuda": "12.8.1", "assumed": True},
@@ -314,7 +314,7 @@ class CompatibilityData:
         # FA2 Windows wheel availability: (fa2_version, cu_moniker, torch_build_version) -> [python_versions]
         # Used to construct download URLs from https://github.com/kingbri1/flash-attention/releases
         # Ground truth: build-wheels.yml from kingbri1/flash-attention (main branch)
-        # LAST VERIFIED: October 30, 2026 — still v2.8.3 (17 assets); check releases for newer wheels
+        # LAST VERIFIED: November 19, 2026 — still v2.8.3 (17 assets); check releases for newer wheels
         self.fa2_windows_wheels = {
             ("2.8.3", "cu124", "2.6.0"): ["3.11"],
             ("2.8.3", "cu128", "2.7.0"): ["3.10", "3.11", "3.12", "3.13"],
@@ -334,6 +334,8 @@ class CompatibilityData:
         # CUDA values use torch_cuda versions for each CU moniker (for matching).
         # The xformers build toolkit may differ (e.g. cu126 builds with CUDA 12.8.1 from v0.0.31+).
         self.xformers = [
+            {"xformers": "0.0.36", "torch": "2.10.0", "torch_min": True, "fa2": "",
+             "cuda": [], "mslk": True, "notes": ""},
             {"xformers": "0.0.35", "torch": "2.10.0", "torch_min": True, "fa2": "2.7.1-2.8.4",
              "cuda": ["12.6.3", "12.8.1", "13.0.0"], "notes": ""},
             {"xformers": "0.0.34", "torch": "2.10.0", "fa2": "2.7.1-2.8.4",
@@ -360,6 +362,22 @@ class CompatibilityData:
              "cuda": ["12.4.1", "12.6.3"], "python_max": "3.12", "notes": ""},
             {"xformers": "0.0.29.post2", "torch": "2.6.0", "fa2": "2.7.1-2.7.2",
              "cuda": ["12.4.1", "12.6.3"], "python_max": "3.12", "no_win_cuda": ["12.6.3"], "notes": ""},
+        ]
+
+        self.mslk = [
+            {"mslk": "1.4.0", "torch": "2.15", "python": ["3.11", "3.12", "3.13", "3.14", "3.15"],
+             "linux": ["cu130", "cu132", "cu134"], "windows": ["cu132", "cu134"]},
+            {"mslk": "1.3.0", "torch": "2.13", "python": ["3.10", "3.11", "3.12", "3.13", "3.14"],
+             "linux": ["cu130", "cu132"], "windows": ["cu130", "cu132"]},
+            {"mslk": "1.2.0", "torch": "2.12", "python": ["3.10", "3.11", "3.12", "3.13", "3.14"],
+             "linux": ["cu130", "cu132"], "windows": []},
+            {"mslk": "1.1.1", "torch": "2.11", "python": ["3.10", "3.11", "3.12", "3.13", "3.14"],
+             "linux": ["cu126", "cu128", "cu130"], "windows": []},
+            {"mslk": "1.1.0", "torch": "2.11", "python": ["3.10", "3.11", "3.12", "3.13", "3.14"],
+             "linux": ["cu126", "cu128", "cu129", "cu130"], "windows": []},
+            {"mslk": "1.0.0", "torch": "2.10", "python": ["3.10", "3.11", "3.12", "3.13", "3.14"],
+             "linux": ["cu126", "cu128", "cu129", "cu130"], "windows": [],
+             "no_linux_python": {"cu126": ["3.14"]}},
         ]
 
         # Ground truth: python-package.yml from tagged releases in bitsandbytes-foundation/bitsandbytes
@@ -694,7 +712,7 @@ class CompatibilityChecker(QMainWindow):
     def _version_sorted(values, reverse=False):
         def key(value):
             parts = []
-            for seg in str(value).rstrip("*~").split("."):
+            for seg in str(value).rstrip("*~‡").split("."):
                 m = re.match(r"(\d+)", seg)
                 parts.append((int(m.group(1)), seg[m.end():]) if m else (0, seg))
             return parts
@@ -923,6 +941,21 @@ class CompatibilityChecker(QMainWindow):
              "and patch releases that share them are compatible with each other.\n"
              "\n"
              "Nothing extra is needed; install the row as shown."),
+            (QColor(72, 160, 150), "‡", "Slower fallback mode (no MSLK build for this PyTorch)",
+             "‡ = Slower fallback mode (no MSLK build for this PyTorch)\n"
+             "Marks cells in the Xformers column.\n"
+             "\n"
+             "What it means: from version 0.0.36, xformers gets its fast compiled\n"
+             "code from a separate package called MSLK, and each MSLK release is\n"
+             "made for one PyTorch release. This row has no MSLK build made for\n"
+             "its PyTorch release, so pip installs a different one.\n"
+             "\n"
+             "Example: there is no MSLK release for PyTorch 2.14.\n"
+             "\n"
+             "xformers still installs and works, but it prints a warning and runs\n"
+             "MSLK in a slower 'python-only' mode.\n"
+             "\n"
+             "For full speed, choose a row without this mark."),
             (QColor(186, 148, 214), "†", "Wheel exists but was not in the tagged release matrix",
              "† = Wheel exists but was not in the tagged release matrix\n"
              "Marks cells in the CUDA (torch-tested) column.\n"
@@ -1212,10 +1245,15 @@ class CompatibilityChecker(QMainWindow):
                      for v in fa2_cell if v.endswith("*")}
             items.append({"key": "fa2", "name": "flash-attn", "versions": fa2, "source": "fa2",
                           "urls": urls, "notes": notes, "wheel": True})
-        xformers = [v.rstrip("~") for v in cell_versions(9)]
+        xformers = [v.rstrip("~‡") for v in cell_versions(9)]
         if xformers:
             items.append({"key": "xformers", "name": "xformers", "versions": xformers, "source": "pytorch",
                           "package": "xformers", "wheel": True})
+            if any(x.get("mslk") for x in self.data.xformers if x["xformers"] == xformers[0]):
+                builds, matched = self._mslk_builds(torch_ver, moniker, python_ver, platform)
+                versions = ([matched] if matched else []) + [v for v in builds if v != matched]
+                items.append({"key": "mslk", "name": "mslk (required by xformers)", "versions": versions,
+                              "source": "pytorch", "package": "mslk", "wheel": True})
         bnb = [v.rstrip("*~") for v in cell_versions(10)]
         if bnb:
             items.append({"key": "bnb", "name": "bitsandbytes", "versions": bnb, "source": "pypi",
@@ -1351,10 +1389,17 @@ class CompatibilityChecker(QMainWindow):
 
         # Xformers
         if xf_cell and xf_cell != "-":
-            xf_ver = xf_cell.split(",")[0].strip().rstrip("~")
+            xf_ver = xf_cell.split(",")[0].strip().rstrip("~‡")
             lines.append("")
             lines.append(f"# Xformers")
-            lines.append(f"pip install xformers=={xf_ver} --index-url https://download.pytorch.org/whl/{moniker}")
+            xf_spec = f"xformers=={xf_ver}"
+            if any(x.get("mslk") for x in self.data.xformers if x["xformers"] == xf_ver):
+                matched = self._mslk_builds(torch_ver, moniker, python_ver, platform)[1]
+                if matched:
+                    xf_spec += f" mslk=={matched}"
+                else:
+                    lines.append("# No MSLK build is made for this PyTorch release; xformers will use its slower python-only mode")
+            lines.append(f"pip install {xf_spec} --index-url https://download.pytorch.org/whl/{moniker}")
 
         # bitsandbytes
         if bnb_cell and bnb_cell != "-":
@@ -1424,6 +1469,14 @@ class CompatibilityChecker(QMainWindow):
         return (f"https://github.com/Dao-AILab/flash-attention/releases/download/"
                 f"v{fa2_ver}/flash_attn-{wheel_ver}%2Bcu{cuda_major}torch{torch_mm}"
                 f"cxx11abiTRUE-cp{py_nodot}-cp{py_nodot}-linux_x86_64.whl")
+
+    def _mslk_builds(self, torch_ver, moniker, python_ver, platform):
+        builds = [m for m in self.data.mslk if moniker in m[platform] and (
+            platform == "windows" or (python_ver in m["python"]
+                                      and python_ver not in m.get("no_linux_python", {}).get(moniker, [])))]
+        torch_mm = ".".join(torch_ver.split(".")[:2])
+        matched = next((m["mslk"] for m in builds if m["torch"] == torch_mm), None)
+        return [m["mslk"] for m in builds], matched
 
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
         cuda_short = '.'.join(cuda_version.split('.')[:2])  # e.g. "13.0"
@@ -1541,6 +1594,15 @@ class CompatibilityChecker(QMainWindow):
                             return False
                         return not (platform == "windows" and tc["cuda"] in xf.get("no_win_cuda", []))
 
+                    xf_mslk_versions = []
+                    xf_has_fallback = False
+                    mslk_builds, mslk_matched = self._mslk_builds(tc["torch"], tc["wheel"], py_ver, platform)
+                    if mslk_builds:
+                        for x in self.data.xformers:
+                            if x.get("mslk") and xf_torch_match(x, tc["torch"]):
+                                xf_mslk_versions.append(x["xformers"] + ("" if mslk_matched else "‡"))
+                                xf_has_fallback = xf_has_fallback or not mslk_matched
+
                     xf_exact = [x for x in self.data.xformers
                                 if xf_torch_match(x, tc["torch"]) and tc["cuda"] in x["cuda"] and xf_available(x)]
                     # Patch-version-diff match (same major.minor, different patch)
@@ -1558,10 +1620,11 @@ class CompatibilityChecker(QMainWindow):
                         xf_versions = [x["xformers"] + "~" for x in xf_patch_diff]
                         xf_has_patch_diff = True
                     else:
-                        xf_versions = ["-"]
+                        xf_versions = []
+                    xf_versions = (xf_mslk_versions + xf_versions) or ["-"]
 
                     if xformers_sel:
-                        if xformers_sel not in [v.rstrip("~") for v in xf_versions]:
+                        if xformers_sel not in [v.rstrip("~‡") for v in xf_versions]:
                             continue
 
                     bnb_versions, bnb_has_assumed, bnb_has_patch_diff = self.get_bnb_for_cuda_python(tc["cuda"], py_ver)
@@ -1622,6 +1685,7 @@ class CompatibilityChecker(QMainWindow):
                         "fa2_has_assumed": fa2_has_assumed,
                         "xformers": ", ".join(xf_versions),
                         "xf_has_patch_diff": xf_has_patch_diff,
+                        "xf_has_fallback": xf_has_fallback,
                         "bnb": ", ".join(bnb_versions),
                         "bnb_has_assumed": bnb_has_assumed,
                         "bnb_has_patch_diff": bnb_has_patch_diff,
@@ -1727,6 +1791,13 @@ class CompatibilityChecker(QMainWindow):
                     xf_item.setBackground(QColor(100, 149, 237))
                     xf_item.setForeground(QColor(255, 255, 255))
                     xf_item.setToolTip("~ = CUDA patch version differs (built against a different patch version but same major.minor)")
+                if combo["xf_has_fallback"]:
+                    xf_item.setBackground(QColor(72, 160, 150))
+                    xf_item.setForeground(QColor(255, 255, 255))
+                    tip = "‡ = No MSLK build is made for this PyTorch release; xformers runs in a slower fallback mode"
+                    if combo["xf_has_patch_diff"]:
+                        tip += "\n~ = CUDA patch version differs (built against a different patch version but same major.minor)"
+                    xf_item.setToolTip(tip)
                 self.compat_table.setItem(i, 9, xf_item)
 
                 bnb_item = make_item(combo["bnb"])

@@ -112,10 +112,10 @@ GROUND TRUTH SOURCES
 #     https://pypi.org/pypi/flash-attn/json
 #   NOTE: FA2 has no hard torch pin (setup.py: install_requires=["torch"]).
 #         The CI matrix defines what was built/tested.
-#   NOTE: upstream publishes FA4 betas (fa4-v4.0.0.betaNN) weekly; betas are not tracked.
-#         FA2 resumed with v2.8.3.post2 (2026-10-13: CVE-2026-31253 and CVE-2026-62239 fixes
+#   NOTE: FA2 resumed with v2.8.3.post2 (2026-10-13: CVE-2026-31253 and CVE-2026-62239 fixes
 #         plus a backward-pass overflow fix), tracked since 2026-10-15: post1's cu12 grid
-#         exactly, with no cu13 wheels.
+#         exactly, with no cu13 wheels. FA4 is OUT OF SCOPE (see VERSION SCOPE POLICY), so
+#         filter fa4-* tags out when enumerating this repo's releases — both live here.
 #
 # ---- Flash Attention 2 (Windows) ----
 #   Repo: https://github.com/kingbri1/flash-attention
@@ -137,6 +137,11 @@ GROUND TRUTH SOURCES
 #     https://raw.githubusercontent.com/facebookresearch/xformers/v{VER}/.github/actions/setup-build-cuda/action.yml
 #   PyPI metadata (for torch pin in published wheel — may differ from pyproject.toml):
 #     https://pypi.org/pypi/xformers/json
+#   FROM v0.0.36 NONE OF THE REPO RECIPES ABOVE APPLY. xformers is one pure-Python
+#   wheel and its kernels live in mslk, so the compatibility grid is mslk's wheel list:
+#     https://download.pytorch.org/whl/{moniker}/mslk/      (403 = no mslk on that moniker)
+#     https://github.com/meta-pytorch/MSLK#release-compatibility-table   (mslk -> torch)
+#   See the MSLK block in the Xformers section before checking anything.
 #
 # ---- Bitsandbytes ----
 #   Repo: https://github.com/bitsandbytes-foundation/bitsandbytes
@@ -543,11 +548,12 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 # torch_python_triton[] :
 #   cuda_versions      major.minor strings, matched against torch_cuda's full versions.
 #   triton_compat      all triton minors known-compatible (README-level), vs "triton"
-#                      which is torch's exact hard pin.
+#                      which is the version torch pins (== through 2.13.0, ~= from
+#                      2.14.0).
 #   python_linux_only  Python versions present ONLY in Linux wheels (see P14). Filtered
 #                      out when the platform toggle is set to Windows. "python" and this
-#                      field were swept against every index's wheel tags on 2026-10-29:
-#                      85/85 cells, uniform across monikers and CPU arch (class 4).
+#                      field were swept against every index's wheel tags on 2026-11-11:
+#                      89/89 cells, uniform across monikers (class 4).
 #   triton_no_python   OPTIONAL. Pythons the row's torch supports but its pinned triton
 #                      does not: no triton (Linux) or triton-windows (Windows) wheel
 #                      exists for them, though torch itself installs there. The Triton
@@ -571,8 +577,8 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                      and no sdist (re-checked 2026-10-30). download.pytorch.org/whl/
 #                      triton/ does carry cp315 wheels for 3.7.1 and 3.8.0, but the
 #                      emitted Linux command installs triton from PyPI, so the list is
-#                      right for the command the program emits. Class 5 (all 14 pins,
-#                      from PEP 658 metadata) swept clean 2026-10-28.
+#                      right for the command the program emits. Class 5 (245 wheels'
+#                      PEP 658 metadata, both platforms) swept clean 2026-11-15.
 #                      RE-CHECK TRIGGER: a new 3.7.x/3.8.x build with a 3.15 wheel on
 #                      PyPI or for Windows, and every new torch release (re-read its
 #                      marker). The triton line stays on PyPI by owner decision; see
@@ -586,6 +592,19 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #                0.0.30 stop at cp312; 0.0.31+ ship one cp39-abi3 wheel instead.
 #   no_win_cuda  OPTIONAL. torch CUDA versions whose moniker has no Windows wheel of this
 #                release: 0.0.29.post2 has none on cu126.
+#   mslk         OPTIONAL. True from 0.0.36: the row has no CUDA list of its own (cuda is
+#                []). Where it shows is worked out from mslk[] by _mslk_builds().
+#   fa2          Documentation only; no code reads it. Empty from 0.0.36 (no source).
+#
+# mslk[] :  one entry per mslk release, newest first. See the MSLK block under Xformers.
+#   torch            The torch major.minor this mslk release is made for (upstream table).
+#   python           Pythons with a Linux x86_64 wheel. Windows wheels are py3-none.
+#   linux / windows  Monikers with a wheel for that platform.
+#   no_linux_python  OPTIONAL. {moniker: [Pythons]} missing on one moniker only
+#                    (1.0.0 has no cp314 wheel on cu126).
+#   A torch row shows 0.0.36 when ANY entry has a wheel for its moniker, platform and
+#   Python. It gets the fallback marker when none of those entries is made for its
+#   torch, and the install line pins mslk only when one is.
 #
 # flash_attention_linux[] :
 #   cuda       CUDA MAJOR ("12"/"13") of the torch wheel this FA2 wheel pairs with.
@@ -696,7 +715,9 @@ Torch and CUDA Compatibility
 * CUDA 11.8.0 is the scope floor. torch 2.6.0/2.7.x also build for older CUDA in some
   channels; anything below 11.8 is deliberately out of scope (see VERSION SCOPE POLICY).
 * Re-verified: Windows availability for all 47 rows on 2026-10-31 (class 1); the cuDNN
-  column against each release's build matrix on 2026-11-03, 47/47 (class 3).
+  column from each wheel's own metadata on 2026-11-17, 47/47 (class 3); the Windows
+  wheels' bundled cuDNN on 2026-11-09, 42/42 rows (class 2); the generated install
+  commands on 2026-11-07, 461 command blocks, 0 failures (class 9).
 
 # GPU architecture notes (torch 2.11.0+):
 #   - Volta (SM 7.0, e.g. V100) support was removed from cu128 and cu129 builds
@@ -816,7 +837,7 @@ Torch and CUDA Compatibility
 # Row-per-version (was column-per-version; transposed once the list grew past ~12).
 # COMPLETE for every CUDA release from 11.8.0 onward (41 versions as of 2026-11-06).
 # Every value was generated directly from the redistribution JSONs and re-verified
-# (450 values, 0 mismatches, 2026-11-06; class 7). Regenerate rather than hand-edit —
+# (450 values, 0 mismatches, 2026-11-19; class 7). Regenerate rather than hand-edit —
 # see the enumerate command in GROUND TRUTH SOURCES.
 # There is no 12.7.x — NVIDIA never released it. 11.8.0 shows "-" for nvjitlink
 # because nvJitLink did not exist until CUDA 12.0.
@@ -901,9 +922,11 @@ VERSION SCOPE POLICY  (what belongs in the program at all)
 #        leave holes above it. Current floors:
 #            torch          2.6.0
 #            torchvision    0.21.0
-#            torchaudio     2.6.0   (maintenance; no release after 2.11.0)
+#            torchaudio     2.6.0   (maintenance; no release after 2.11.1)
 #            triton         3.2.0
 #            xformers       0.0.29.post2
+#            mslk           1.0.0   (xformers' kernel package from 0.0.36; added
+#                                    2026-11-20 by owner decision, no column of its own)
 #            bitsandbytes   0.47.0
 #            flash-attn     2.8.2   (both Linux and Windows tables)
 #
@@ -912,6 +935,12 @@ VERSION SCOPE POLICY  (what belongs in the program at all)
 #   flash-attn-3   FlashAttention 3. On PyPI, and on PyTorch's cu126/cu128/cu129/cu130
 #                  indexes (Windows wheels on cu126-cu129). Excluded 2026-10-05: the owner
 #                  does not use it.
+#   flash-attn-4   FlashAttention 4. Published as fa4-v4.0.0.betaNN GitHub prereleases on a
+#                  weekly cadence, and as the flash-attn-4 PyPI project. Excluded 2026-11-06:
+#                  nothing in the program displays FA4, so monitoring it produced no
+#                  user-visible value. Do NOT check it and do NOT report it. FA2 is
+#                  unaffected. FA2 and FA4 share one GitHub releases endpoint, so filter
+#                  fa4-* tags out when enumerating FA2.
 #   PyTorch triton The triton builds on download.pytorch.org/whl/triton/ (3.7.1/3.8.0
 #                  differ from PyPI's files and add cp315). The Triton column and triton
 #                  line use only PyPI's triton and triton-windows. Settled 2026-10-30: do
@@ -939,19 +968,13 @@ DEFERRED — EXISTS UPSTREAM, DELIBERATELY NOT TRACKED YET
 # Each entry carries a RE-CHECK TRIGGER: the specific condition that turns it from
 # deferred into actionable. Delete the entry once its trigger fires and it is added.
 #
-# --- flash-attention FA4 betas (fa4-v4.0.0.betaNN) ---  deferred, ongoing
-#   Weekly cadence; beta38 published 2026-11-04.
-#   WHY DEFERRED: prereleases, filtered by P4. Also only 2 assets each, versus 50+ for
-#   an FA2 release — not a compatibility matrix.
-#   RE-CHECK TRIGGER: an FA4 release whose VERSION carries no beta/rc/alpha segment
-#   (a plain fa4-v4.0.0 tag, or a flash-attn-4 PyPI version that is not a PEP 440
-#   prerelease and not fully yanked).
-#   JUDGE BY THE VERSION STRING, NOT BY FLAGS. Two decoys already look like the trigger:
-#     - GitHub marks fa4-v4.0.0.beta0, beta1, beta2 and beta4 (all 2026-03-05) as
-#       prerelease:false even though they are betas; beta5 onward are flagged true.
-#       There is no beta3 release or tag.
-#     - FA4 ships on PyPI as flash-attn-4, whose only non-prerelease version, 0.0.1,
-#       is a yanked ~1 KB placeholder from 2026-02-09. P4's yank filter excludes it.
+# CURRENTLY EMPTY. The last entry, the flash-attention FA4 betas, was moved to OUT OF
+# SCOPE BY OWNER DECISION on 2026-11-06 — nothing in the program displays FA4, so the
+# weekly beta check produced a fresh non-finding every run and never anything else.
+# An empty register here is a REAL STATE, not a missing section: it means every release
+# that exists upstream and is in scope by version floor is also tracked. Keep the
+# section. An audit reads all three scope registers by name and should find this one
+# empty rather than absent, and the next genuinely-deferred release goes here.
 
 
 ************
@@ -963,7 +986,7 @@ cuDNN & CUDA
 +-------------------+---------------------------+----------------------+
 | cuDNN Package     | CUDA Toolkit              | Windows Support      |
 +-------------------+---------------------------+----------------------+
-| 9.x for CUDA 13.x | 13.0-13.4 [4]             | Matrix says N/A [1]  |
+| 9.x for CUDA 13.x | 13.0-13.5 [4]             | Matrix says N/A [1]  |
 | 9.x for CUDA 12.x | 12.0-12.6, 12.8, 12.9 [2] | Driver >= 527.41     |
 |   + Blackwell GPU | 12.8, 12.9                | Driver >= 570.65 [3] |
 +-------------------+---------------------------+----------------------+
@@ -986,17 +1009,18 @@ cuDNN & CUDA
   that supports them. For older hardware, use cuDNN 8.9.x.
 * Linux driver minimums: >= 525.60.13 (CUDA 12.x build),
   >= 615.71.09 (CUDA 13.x build, as of cuDNN 9.26.0; it was >= 580.65.06
-  through 9.25.1). NVIDIA gives ONE value for the whole 13.0-13.4 row, so it
+  through 9.25.1). NVIDIA gives ONE value for the whole 13.0-13.5 row, so it
   does not say whether a 580-series driver still works for 13.0-13.3.
-* Recommended for tuning heuristics: cuDNN 9.28.0 + CUDA 13.4.1 (Linux).
+* Recommended for tuning heuristics: cuDNN 9.28.1 + CUDA 13.5 (Linux).
   (Verbatim from the support matrix: "For best performance, the recommended
-  configuration is cuDNN 9.28.0 with CUDA 13.4.1. This is the configuration used
+  configuration is cuDNN 9.28.1 with CUDA 13.5. This is the configuration used
   for tuning heuristics.")
-* 9.28.0 names 13.4.1 twice in the 13.x row: in the toolkit list ("13.4.1 13.4 13.3
-  13.2 13.1 13.0") and as the sole entry under "Supports static linking?". That is a
-  patch inside the 13.0-13.4 range above, so the range does not change, and the
-  driver minimums and footnote [4] are unchanged from 9.26.0. Flattened to text, the
-  static-linking 13.4.1 reads like a repeated toolkit: parse the table <td> by <td>.
+* The 13.x row now reaches 13.5: the toolkit list is "13.5 13.4.1 13.4 13.3 13.2 13.1
+  13.0" and "Supports static linking?" is 13.5 alone (measured 2026-11-20 on 9.28.1;
+  the 9.28.0 page was revised in place to match, having listed 13.4.1 on 2026-11-06).
+  Driver minimums and footnote [4] are unchanged from 9.26.0. Flattened to text, the
+  static-linking entry reads like a repeated toolkit: parse the table <td> by <td>.
+  Rows are <tr class="...">, so a regex on a literal <tr> matches nothing.
 * Windows-only quirks: side-by-side install dropped in 9.10.0 (must
   manually delete prior C:\Program Files\NVIDIA\CUDNN\v9.x tree before
   upgrading); lib path moved from lib\ to lib\x64\ in 9.x; no static
@@ -1016,7 +1040,7 @@ cuDNN & CUDA
   which values changed in the new release and separates a real change from an old
   value that was misread. Parse the table <td> by <td>: flattened to text, the
   static-linking and compute-capability columns read like extra CUDA toolkit versions.
-* current cuDNN release as of last check: 9.28.0.42 (2026-11-04, cu12 and cu13, not yanked)
+* current cuDNN release as of last check: 9.28.1.4 (2026-11-06 to 11-09, cu12 and cu13, not yanked)
   NOTE: 9.25.0.15 exists on PyPI but every file is YANKED — not a valid "latest".
   9.25.1.1 was the fixed republish of that yanked build. torch 2.14.0 and 2.14.1
   both pin 9.24.0.43 for cu130/cu132 and 9.10.2.21 for cu126. torch 2.15.0 pins
@@ -1352,7 +1376,7 @@ WINDOWS Flash Attention 2
 # The build-wheels.yml also builds Linux wheels (ubuntu-22.04), but those are separate
 # from the official Dao-AILab Linux FA2 wheels built via publish.yml.
 #
-# LAST VERIFIED: October 30, 2026 — still v2.8.3 (17 assets, published 2025-08-16);
+# LAST VERIFIED: November 19, 2026 (rows swept 2026-11-13, class 6) — still v2.8.3 (17 assets, published 2025-08-16);
 # no newer kingbri1 release exists. Data below re-confirmed unchanged.
 # Windows FA2 compatibility data may be outdated. The table below was last verified
 # against release assets on the date above. Check kingbri1/flash-attention releases
@@ -1408,9 +1432,45 @@ Xformers
 # wheel has actually been BUILT against 2.12.x or 2.13.0, so those combinations rely
 # on the declared floor rather than a tested build.
 
+# ---- MSLK: xformers 0.0.36 (2026-11-13) CHANGED WHAT HAS TO BE CHECKED ----
+# From 0.0.36 xformers is ONE pure-Python wheel (py3-none-any) that requires mslk
+# (meta-pytorch/MSLK), where every compiled kernel now lives. Consequences:
+#   - An xformers wheel on an index proves nothing. The same wheel is uploaded to every
+#     CUDA and ROCm index. The CUDA / Python / platform axes are mslk's.
+#   - wheels.yml has no torch loop or CU_VERSIONS, and flash.py is a re-export shim with
+#     no FLASH_VER_MIN/LAST. Empty results there are correct, not a parse failure.
+#   - mslk on PyPI is a 0.0.0 placeholder. Real builds (1.0.0+, local version +cuXXX)
+#     are only on download.pytorch.org/whl/{moniker}/mslk/.
+#   - The install line uses --index-url, so pip needs an mslk wheel on the SAME moniker
+#     for the platform and Python, or the install fails. The program hides 0.0.36 there.
+#   - mslk declares no torch requirement, so pip takes the newest mslk on the index.
+#     Each mslk targets one torch release (table below). On a mismatch xformers still
+#     works on CUDA but in mslk's slower python-only mode, with a warning (release
+#     notes). The program marks those rows and pins the matching mslk where one exists.
+#   - The program's mslk[] list must equal the table below. Verified 2026-11-20: every
+#     row on both platforms against the live listings, 123 install commands resolved.
+# mslk wheels, x86_64, measured from the index listings 2026-11-20:
++-------+--------+----------------------------------------+--------------+
+| mslk  | Torch  | Linux monikers (Python)                | Windows      |
++-------+--------+----------------------------------------+--------------+
+| 1.4.0 | 2.15.x | cu130, cu132, cu134 (3.11-3.15)        | cu132, cu134 |
+| 1.3.0 | 2.13.x | cu130, cu132 (3.10-3.14)               | cu130, cu132 |
+| 1.2.0 | 2.12.x | cu130, cu132 (3.10-3.14)               | none         |
+| 1.1.1 | 2.11.x | cu126, cu128, cu130 (3.10-3.14)        | none         |
+| 1.1.0 | 2.11.x | cu126, cu128, cu129, cu130 (3.10-3.14) | none         |
+| 1.0.0 | 2.10.x | cu126, cu128, cu129, cu130 (3.10-3.14) | none         |
++-------+--------+----------------------------------------+--------------+
+* No mslk targets torch 2.14.x. Windows wheels are py3-none-win_amd64 (any Python);
+  Linux wheels are per-Python, so a cp-cp regex drops every Windows wheel.
+* Net effect per moniker (any mslk version): cu126/cu128/cu129 Linux 3.10-3.14, no
+  Windows; cu130/cu132 Linux 3.10-3.15 and Windows; cu134 Linux 3.11-3.15 and Windows.
+* RE-CHECK EVERY RUN: a new mslk wheel can open a moniker, platform or Python (Windows
+  cu13x wheels appeared between 2026-11-17 and 11-19).
+
 +------------------+--------+---------------+--------------------------------+
 | Xformers Version | Torch  |      FA2      |           CUDA 12+             |
 +------------------+--------+---------------+--------------------------------+
+| v0.0.36          | 2.10.0 | n/a           | follows mslk — see MSLK above  |
 | v0.0.35          | 2.10.0 | 2.7.1 - 2.8.4 | 12.6.3, 12.8.1, 13.0.0         |
 | v0.0.34          | 2.10.0 | 2.7.1 - 2.8.4 | 12.6.3, 12.8.1, 13.0.0         |
 | v0.0.33.post2    | 2.9.1  | 2.7.1 - 2.8.4 | 12.6.3, 12.8.1, 13.0.0         |
