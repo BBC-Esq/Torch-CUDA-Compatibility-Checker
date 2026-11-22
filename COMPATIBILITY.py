@@ -124,6 +124,16 @@ GROUND TRUTH SOURCES
 #   Actual wheel availability comes from release assets, not the matrix:
 #     https://github.com/kingbri1/flash-attention/releases
 #
+# ---- Transformers ----
+#   PyPI: https://pypi.org/pypi/transformers/json
+#   Source: src/transformers/dependency_versions_table.py at the release tag
+#   See the Transformers section at the end of this file for the rule and the traps.
+#
+# ---- ONNX Runtime GPU ----
+#   PyPI: https://pypi.org/pypi/onnxruntime-gpu/json   (wheel tags, requires_dist extras)
+#   Requirements tables: https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html
+#   See the ONNX Runtime GPU section at the end of this file for the rule and the traps.
+#
 # ---- Xformers ----
 #   Repo: https://github.com/facebookresearch/xformers
 #   Per-release torch version + CUDA build matrix:
@@ -606,6 +616,15 @@ PROGRAM DATA SCHEMA NOTES  (test_compatibility.py)
 #   Python. It gets the fallback marker when none of those entries is made for its
 #   torch, and the install line pins mslk only when one is.
 #
+# transformers[] :  one entry per 5.x minor (its last patch), newest first.
+#   torch_min / python_min  The release's own minimums, as major.minor.
+#   peft_min                Oldest peft it accepts at runtime. Tooltip and comment only.
+#
+# onnxruntime_gpu[] :  one entry per PyPI release, newest first.
+#   cuda    The CUDA major.minor the release was built with: the floor a torch wheel's
+#           CUDA must meet, within the same major ("12.0" means any CUDA 12).
+#   python  Pythons with a wheel, the same on Linux x86_64 and Windows so far.
+#
 # flash_attention_linux[] :
 #   cuda       CUDA MAJOR ("12"/"13") of the torch wheel this FA2 wheel pairs with.
 #   wheel_ver  OPTIONAL. The version string as it appears in the ASSET FILENAME, when it
@@ -927,6 +946,10 @@ VERSION SCOPE POLICY  (what belongs in the program at all)
 #            xformers       0.0.29.post2
 #            mslk           1.0.0   (xformers' kernel package from 0.0.36; added
 #                                    2026-11-20 by owner decision, no column of its own)
+#            transformers   5.0.0   (5.x only, one row per minor; added 2026-11-22 by
+#                                    owner decision)
+#            onnxruntime-gpu 1.19.0 (first PyPI default built for CUDA 12 + cuDNN 9;
+#                                    added 2026-11-22 by owner decision)
 #            bitsandbytes   0.47.0
 #            flash-attn     2.8.2   (both Linux and Windows tables)
 #
@@ -946,8 +969,11 @@ VERSION SCOPE POLICY  (what belongs in the program at all)
 #                  line use only PyPI's triton and triton-windows. Settled 2026-10-30: do
 #                  not add --index-url to the triton line to reach cp315 for torch
 #                  2.13/2.14, whose own metadata leaves triton out on Python 3.15.
-#   The owner has also said the current scope (the libraries above, on Windows and
-#   Linux) is enough. Do not propose new libraries, platforms or hardware targets.
+#   NEW LIBRARIES (owner, 2026-11-22, replacing "the current scope is enough"): a library
+#   may be added when the owner uses it, its builds depend on torch, CUDA, Python or
+#   platform, and that can be checked from the source. The owner decides each one. A
+#   package that a tracked library starts requiring is in scope (mslk, 2026-11-20).
+#   Do not propose new platforms or hardware targets.
 #
 # The failure mode this policy exists to prevent: for a long time versions were added
 # only when a scan happened to surface them, which silently left holes ABOVE the floor
@@ -1601,4 +1627,150 @@ Bitsandbytes
 |                  | 12.4.1, 12.5.1, 12.6.3, 12.8.1, 12.9.1        | 3.12, 3.13           |
 |                  |                                               | (py3 wheel)          |
 +------------------+-----------------------------------------------+----------------------+
+
+******************
+ONNX Runtime GPU
+******************
+
+# Added 2026-11-22 by owner decision. PyPI package onnxruntime-gpu, from the 1.19.0 floor.
+#
+# GROUND TRUTH, in the order to trust it:
+#   1. PyPI wheel tags per release: which Pythons and platforms exist.
+#        https://pypi.org/pypi/onnxruntime-gpu/json
+#   2. Each release's own requires_dist "cuda"/"cudnn" extras (from 1.21.0): the CUDA major
+#      it was built for. 1.21.0-1.26.0 name nvidia-*-cu12 ~=12.0; 1.27.0 names
+#      nvidia-*-cu13 ~=13.0; 1.28.0 on name nvidia-cuda-runtime ~=13.0 (no -cu13 suffix)
+#      and nvidia-cudnn-cu13 ~=9.0.
+#        https://pypi.org/pypi/onnxruntime-gpu/{VER}/json
+#   3. The wheel itself: the NEEDED entries of capi/libonnxruntime_providers_cuda.so in a
+#      Linux wheel (libcudart.so.12 through 1.26.0, libcudart.so.13 from 1.27.0). Read by
+#      HTTP Range; the first 4 MiB of the member is enough.
+#   4. The requirements tables, for the minor-version floor only:
+#        https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html
+#
+# THE RULE THE PROGRAM APPLIES (get_ort_for_cuda_python). A release shows in a torch row when:
+#   - its CUDA major equals the torch wheel's, and the torch wheel's CUDA major.minor is at
+#     or above the CUDA it was built with; and
+#   - it has a wheel for the row's Python (the lists are the same on both platforms so far).
+# Source, verbatim from the requirements page: "ONNX Runtime built with CUDA 12.8 require
+# CUDA 12.8 or newer; ONNX Runtime built with CUDA 13.0 require CUDA 13.0 or newer", and
+# "The onnxruntime-gpu package is designed to work seamlessly with PyTorch, provided both
+# are built against the same major version of CUDA and cuDNN." Every tracked torch row and
+# every tracked release uses cuDNN 9, so cuDNN never decides a cell.
+# So torch cu124/cu126 rows get 1.19.x-1.20.x only, cu128/cu129 rows get up to 1.26.0, and
+# every CUDA 13 row gets 1.27.0 on. cu118 rows get none: CUDA 11 builds are not on PyPI.
+#
++--------------+------------+-----------------+----------------------------+
+| ONNX Runtime | Released   | Built with CUDA | Python (Linux and Windows) |
++--------------+------------+-----------------+----------------------------+
+| v1.32.0      | 2026-11-13 | 13.0            | 3.11, 3.12, 3.13, 3.14     |
+| v1.31.1      | 2026-10-26 | 13.0            | 3.11, 3.12, 3.13, 3.14     |
+| v1.31.0      | 2026-10-09 | 13.0            | 3.11, 3.12, 3.13, 3.14     |
+| v1.30.0      | 2026-09-10 | 13.0            | 3.11, 3.12, 3.13, 3.14     |
+| v1.29.0      | 2026-08-17 | 13.0            | 3.11, 3.12, 3.13, 3.14     |
+| v1.28.0      | 2026-07-25 | 13.0            | 3.11, 3.12, 3.13, 3.14     |
+| v1.27.0      | 2026-06-18 | 13.0            | 3.11, 3.12, 3.13, 3.14     |
+| v1.26.0      | 2026-05-08 | 12.8            | 3.11, 3.12, 3.13, 3.14     |
+| v1.25.1      | 2026-04-27 | 12.8            | 3.11, 3.12, 3.13, 3.14     |
+| v1.25.0      | 2026-04-22 | 12.8            | 3.11, 3.12, 3.13, 3.14     |
+| v1.24.4      | 2026-03-17 | 12.8            | 3.11, 3.12, 3.13, 3.14     |
+| v1.24.1      | 2026-02-05 | 12.8            | 3.11, 3.12, 3.13, 3.14     |
+| v1.23.2      | 2025-10-22 | 12.8            | 3.10, 3.11, 3.12, 3.13     |
+| v1.23.0      | 2025-09-25 | 12.8            | 3.10, 3.11, 3.12, 3.13     |
+| v1.22.0      | 2025-05-09 | 12.8            | 3.10, 3.11, 3.12, 3.13     |
+| v1.21.1      | 2025-04-18 | 12.8            | 3.10, 3.11, 3.12, 3.13     |
+| v1.21.0      | 2025-03-07 | 12.8            | 3.10, 3.11, 3.12, 3.13     |
+| v1.20.2      | 2025-03-07 | 12.x            | 3.10, 3.11, 3.12, 3.13     |
+| v1.20.0      | 2024-11-01 | 12.x            | 3.10, 3.11, 3.12, 3.13     |
+| v1.19.2      | 2024-09-04 | 12.x            | 3.8, 3.9, 3.10, 3.11, 3.12 |
+| v1.19.0      | 2024-08-16 | 12.x            | 3.8, 3.9, 3.10, 3.11, 3.12 |
++--------------+------------+-----------------+----------------------------+
+* "Built with CUDA": 12.x for 1.19-1.20 is the docs' wording (no stated minor floor), so the
+  program treats those as any CUDA 12.
+* The install line is `pip install onnxruntime-gpu=={newest}` from PyPI, with a comment to
+  import torch first. onnxruntime.preload_dlls() exists from 1.21.0.
+* Verified 2026-11-22: every row on both platforms against live PyPI (0 mismatches), 28
+  distinct install commands resolved, 168 download wheels resolved, older cells unchanged.
+#
+# TRAPS:
+#   - The docs tables LAG. On 2026-11-22 they stopped at 1.30.x while 1.31.0, 1.31.1 and
+#     1.32.0 were on PyPI. A release missing from the docs is not a release without a rule;
+#     read its requires_dist and its wheel.
+#   - requires_python is not the wheel list. 1.24.1 declares >=3.10 but ships cp311-cp314.
+#     Read the wheel tags.
+#   - From 1.28.0 the provider library no longer lists libcudnn or libcufft in NEEDED, and a
+#     scan past the first few MiB also finds stray "libcudart.so.12" strings in 13.x builds.
+#     Read NEEDED from the start of the file, and take cuDNN from requires_dist.
+#   - aarch64 wheels exist from 1.29.0 (manylinux_2_34_aarch64). A platform test for "linux"
+#     counts them; match x86_64.
+#   - 1.27.0 on also have separate CUDA 12 builds, but not on PyPI. They are out of scope,
+#     like the CUDA 11 feed. The program tracks the PyPI package only.
+#   - No release has a Python 3.15 wheel yet. Expect one; when it appears the Python lists
+#     change and the 3.15 rows gain a cell.
+
+**************
+Transformers
+**************
+
+# Added 2026-11-22 by owner decision. PyPI package transformers, 5.x only, from 5.0.0.
+# ONE ROW PER MINOR, holding that minor's LAST PATCH. Requirements have only ever changed at
+# a .0 release (checked across all 44 stable 5.x releases), so the last patch speaks for
+# its minor. When a new patch of the newest minor appears, replace that row's version.
+#
+# GROUND TRUTH, two sources that must agree:
+#   1. PyPI metadata per release: requires_python, and the "torch" extra in requires_dist.
+#        https://pypi.org/pypi/transformers/{VER}/json
+#   2. The release's own source: "torch", "python" and "peft" in
+#        https://raw.githubusercontent.com/huggingface/transformers/v{VER}/src/transformers/dependency_versions_table.py
+#      and the runtime gate in src/transformers/utils/import_utils.py (torch_version >= ...),
+#      plus MIN_PEFT_VERSION in src/transformers/integrations/peft.py.
+#
+# THE RULE THE PROGRAM APPLIES (get_transformers_for_torch_python): a release shows when the
+# row's torch major.minor is at or above torch_min and its Python is at or above python_min.
+# The wheel is py3-none-any, so there is no platform or CUDA axis and no upper Python bound.
+# peft_min is shown in the tooltip and the install comment only. It is enforced at runtime,
+# not by pip, so no resolver catches it.
+#
++--------------+------------+----------+-----------+---------+
+| Transformers | Released   | torch >= | Python >= | peft >= |
++--------------+------------+----------+-----------+---------+
+| v5.24.0      | 2026-11-21 | 2.6      | 3.11      | 0.22.0  |
+| v5.23.0      | 2026-11-13 | 2.6      | 3.11      | 0.20.0  |
+| v5.22.2      | 2026-11-06 | 2.6      | 3.11      | 0.20.0  |
+| v5.21.1      | 2026-10-29 | 2.6      | 3.11      | 0.20.0  |
+| v5.20.2      | 2026-10-19 | 2.6      | 3.10      | 0.20.0  |
+| v5.19.0      | 2026-10-06 | 2.5      | 3.10      | 0.20.0  |
+| v5.18.0      | 2026-09-30 | 2.5      | 3.10      | 0.20.0  |
+| v5.17.0      | 2026-09-09 | 2.5      | 3.10      | 0.19.1  |
+| v5.16.1      | 2026-08-26 | 2.5      | 3.10      | 0.19.1  |
+| v5.15.1      | 2026-08-19 | 2.5      | 3.10      | 0.19.1  |
+| v5.14.1      | 2026-07-16 | 2.4      | 3.10      | 0.19.1  |
+| v5.13.1      | 2026-07-11 | 2.4      | 3.10      | 0.19.1  |
+| v5.12.1      | 2026-06-15 | 2.4      | 3.10      | 0.19.0  |
+| v5.11.0      | 2026-06-10 | 2.4      | 3.10      | 0.18.0  |
+| v5.10.4      | 2026-06-15 | 2.4      | 3.10      | 0.18.0  |
+| v5.9.0       | 2026-05-20 | 2.4      | 3.10      | 0.18.0  |
+| v5.8.1       | 2026-05-13 | 2.4      | 3.10      | 0.18.0  |
+| v5.7.0       | 2026-04-28 | 2.4      | 3.10      | 0.18.0  |
+| v5.6.2       | 2026-04-23 | 2.4      | 3.10      | 0.18.0  |
+| v5.5.4       | 2026-04-13 | 2.4      | 3.10      | 0.18.0  |
+| v5.4.0       | 2026-03-27 | 2.4      | 3.10      | 0.18.0  |
+| v5.3.0       | 2026-03-04 | 2.4      | 3.10      | 0.18.0  |
+| v5.2.0       | 2026-02-16 | 2.4      | 3.10      | 0.18.0  |
+| v5.1.0       | 2026-02-05 | 2.4      | 3.10      | 0.18.0  |
+| v5.0.0       | 2026-01-26 | 2.2      | 3.10      | 0.18.0  |
++--------------+------------+----------+-----------+---------+
+* With the torch floor at 2.6.0, torch_min decides no cell today: every tracked torch meets
+  2.6. Python decides them: 3.9 rows get nothing, 3.10 rows stop at 5.20.2, 3.11 and up get
+  everything. The next torch_min bump will start removing releases from the oldest torch rows.
+* Verified 2026-11-22: every row on both platforms against live PyPI (0 mismatches), 12
+  distinct install commands resolved (Python 3.15 included), 292 download wheels resolved.
+#
+# TRAPS:
+#   - Not every release has a git tag. 5.10.4 is on PyPI with no v5.10.4 tag, so the raw
+#     source URL 404s. Read PyPI metadata for that release and the source of the previous
+#     patch. A 404 there is not evidence the release is fake.
+#   - requires_dist lists torch only under the "torch" extra. A parser that skips lines
+#     carrying "extra ==" finds no torch requirement at all.
+#   - 4.x is out of scope (floor 5.0.0), which is why Python 3.9 rows are empty.
 """

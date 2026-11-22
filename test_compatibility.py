@@ -41,6 +41,14 @@ class CompatibilityData:
                     "PyTorch pins one triton version — the same pin on both platforms.",
                     "Patch versions within a minor are interchangeable.",
                 ]),
+                ("TRANSFORMERS", [
+                    "Each release sets a minimum PyTorch and Python; one row per 5.x minor (its last patch).",
+                    "The tooltip gives the oldest peft the newest listed release accepts.",
+                ]),
+                ("ONNX RUNTIME GPU", [
+                    "Shown where its CUDA major matches PyTorch's and PyTorch's CUDA is new enough.",
+                    "Import torch before onnxruntime so it uses PyTorch's CUDA libraries.",
+                ]),
             ],
         ]
 
@@ -404,6 +412,58 @@ class CompatibilityData:
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "assumed_cuda": []},
             {"bnb": "0.47.0", "cuda": ["11.8.0", "12.0.1", "12.1.1", "12.2.2", "12.3.2", "12.4.1", "12.5.1", "12.6.3", "12.8.1", "12.9.1"],
              "python": ["3.9", "3.10", "3.11", "3.12", "3.13"], "assumed_cuda": []},
+        ]
+
+        self.onnxruntime_gpu = [
+            {"ort": "1.32.0", "cuda": "13.0", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.31.1", "cuda": "13.0", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.31.0", "cuda": "13.0", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.30.0", "cuda": "13.0", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.29.0", "cuda": "13.0", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.28.0", "cuda": "13.0", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.27.0", "cuda": "13.0", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.26.0", "cuda": "12.8", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.25.1", "cuda": "12.8", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.25.0", "cuda": "12.8", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.24.4", "cuda": "12.8", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.24.1", "cuda": "12.8", "python": ["3.11", "3.12", "3.13", "3.14"]},
+            {"ort": "1.23.2", "cuda": "12.8", "python": ["3.10", "3.11", "3.12", "3.13"]},
+            {"ort": "1.23.0", "cuda": "12.8", "python": ["3.10", "3.11", "3.12", "3.13"]},
+            {"ort": "1.22.0", "cuda": "12.8", "python": ["3.10", "3.11", "3.12", "3.13"]},
+            {"ort": "1.21.1", "cuda": "12.8", "python": ["3.10", "3.11", "3.12", "3.13"]},
+            {"ort": "1.21.0", "cuda": "12.8", "python": ["3.10", "3.11", "3.12", "3.13"]},
+            {"ort": "1.20.2", "cuda": "12.0", "python": ["3.10", "3.11", "3.12", "3.13"]},
+            {"ort": "1.20.0", "cuda": "12.0", "python": ["3.10", "3.11", "3.12", "3.13"]},
+            {"ort": "1.19.2", "cuda": "12.0", "python": ["3.8", "3.9", "3.10", "3.11", "3.12"]},
+            {"ort": "1.19.0", "cuda": "12.0", "python": ["3.8", "3.9", "3.10", "3.11", "3.12"]},
+        ]
+
+        self.transformers = [
+            {"transformers": "5.24.0", "torch_min": "2.6", "python_min": "3.11", "peft_min": "0.22.0"},
+            {"transformers": "5.23.0", "torch_min": "2.6", "python_min": "3.11", "peft_min": "0.20.0"},
+            {"transformers": "5.22.2", "torch_min": "2.6", "python_min": "3.11", "peft_min": "0.20.0"},
+            {"transformers": "5.21.1", "torch_min": "2.6", "python_min": "3.11", "peft_min": "0.20.0"},
+            {"transformers": "5.20.2", "torch_min": "2.6", "python_min": "3.10", "peft_min": "0.20.0"},
+            {"transformers": "5.19.0", "torch_min": "2.5", "python_min": "3.10", "peft_min": "0.20.0"},
+            {"transformers": "5.18.0", "torch_min": "2.5", "python_min": "3.10", "peft_min": "0.20.0"},
+            {"transformers": "5.17.0", "torch_min": "2.5", "python_min": "3.10", "peft_min": "0.19.1"},
+            {"transformers": "5.16.1", "torch_min": "2.5", "python_min": "3.10", "peft_min": "0.19.1"},
+            {"transformers": "5.15.1", "torch_min": "2.5", "python_min": "3.10", "peft_min": "0.19.1"},
+            {"transformers": "5.14.1", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.19.1"},
+            {"transformers": "5.13.1", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.19.1"},
+            {"transformers": "5.12.1", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.19.0"},
+            {"transformers": "5.11.0", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.10.4", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.9.0", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.8.1", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.7.0", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.6.2", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.5.4", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.4.0", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.3.0", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.2.0", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.1.0", "torch_min": "2.4", "python_min": "3.10", "peft_min": "0.18.0"},
+            {"transformers": "5.0.0", "torch_min": "2.2", "python_min": "3.10", "peft_min": "0.18.0"},
         ]
 
         self.cuda_metapackages = {
@@ -838,6 +898,16 @@ class CompatibilityChecker(QMainWindow):
         self.bnb_combo.addItems([x["bnb"] for x in self.data.bitsandbytes])
         self.bnb_combo.currentTextChanged.connect(self.update_compatibility)
 
+        self.ort_combo = QComboBox()
+        self.ort_combo.addItem("Any")
+        self.ort_combo.addItems([x["ort"] for x in self.data.onnxruntime_gpu])
+        self.ort_combo.currentTextChanged.connect(self.update_compatibility)
+
+        self.tf_combo = QComboBox()
+        self.tf_combo.addItem("Any")
+        self.tf_combo.addItems([x["transformers"] for x in self.data.transformers])
+        self.tf_combo.currentTextChanged.connect(self.update_compatibility)
+
         for label_text, combo, tooltip in [
             ("PyTorch:", self.torch_combo, ""),
             ("Python:", self.python_combo, ""),
@@ -847,6 +917,8 @@ class CompatibilityChecker(QMainWindow):
             ("Xformers:", self.xformers_combo, ""),
             ("Triton:", self.triton_combo, ""),
             ("bitsandbytes:", self.bnb_combo, ""),
+            ("ONNX Runtime:", self.ort_combo, ""),
+            ("Transformers:", self.tf_combo, ""),
         ]:
             combo.setMinimumWidth(92)
             combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -1014,6 +1086,8 @@ class CompatibilityChecker(QMainWindow):
             "filters/xformers": self.xformers_combo,
             "filters/triton": self.triton_combo,
             "filters/bnb": self.bnb_combo,
+            "filters/ort": self.ort_combo,
+            "filters/transformers": self.tf_combo,
         }
         for key, combo in filter_combos.items():
             if self.settings.contains(key):
@@ -1044,6 +1118,8 @@ class CompatibilityChecker(QMainWindow):
         self.settings.setValue("filters/xformers", self.xformers_combo.currentText())
         self.settings.setValue("filters/triton", self.triton_combo.currentText())
         self.settings.setValue("filters/bnb", self.bnb_combo.currentText())
+        self.settings.setValue("filters/ort", self.ort_combo.currentText())
+        self.settings.setValue("filters/transformers", self.tf_combo.currentText())
         self.settings.setValue("filters/platform", self.platform_combo.currentText())
 
     def closeEvent(self, event):
@@ -1066,6 +1142,8 @@ class CompatibilityChecker(QMainWindow):
         self.xformers_combo.setCurrentIndex(0)
         self.triton_combo.setCurrentIndex(0)
         self.bnb_combo.setCurrentIndex(0)
+        self.ort_combo.setCurrentIndex(0)
+        self.tf_combo.setCurrentIndex(0)
         self.platform_combo.setCurrentText("Windows")
         self._block_updates = False
         self.update_compatibility()
@@ -1132,6 +1210,8 @@ class CompatibilityChecker(QMainWindow):
             ("Xformers", self.xformers_combo.currentText()),
             ("Triton", self.triton_combo.currentText()),
             ("bitsandbytes", self.bnb_combo.currentText()),
+            ("ONNX Runtime", self.ort_combo.currentText()),
+            ("Transformers", self.tf_combo.currentText()),
             ("Platform", self.platform_combo.currentText()),
         ]
         lines.append("Active Filters:")
@@ -1169,7 +1249,7 @@ class CompatibilityChecker(QMainWindow):
         if row < 0:
             return
         # Verify this is a real data row, not the "no results" message
-        if self.compat_table.columnCount() < 12:
+        if self.compat_table.columnCount() < 14:
             return
         menu = QMenu(self)
         download_action = QAction("Download…", self)
@@ -1258,6 +1338,14 @@ class CompatibilityChecker(QMainWindow):
         if bnb:
             items.append({"key": "bnb", "name": "bitsandbytes", "versions": bnb, "source": "pypi",
                           "package": "bitsandbytes", "wheel": True})
+        ort = self.get_ort_for_cuda_python(cuda_ver, python_ver)
+        if ort:
+            items.append({"key": "ort", "name": "onnxruntime-gpu", "versions": ort, "source": "pypi",
+                          "package": "onnxruntime-gpu", "wheel": True})
+        tf = [x["transformers"] for x in self.get_transformers_for_torch_python(torch_ver, python_ver)]
+        if tf:
+            items.append({"key": "transformers", "name": "transformers", "versions": tf, "source": "pypi",
+                          "package": "transformers", "wheel": True})
         cudnn = self._get_cell(row, 6)
         if cudnn not in ("", "-", "N/A"):
             items.append({"key": "cudnn", "name": "cuDNN (NVIDIA archive)", "versions": [cudnn],
@@ -1275,10 +1363,10 @@ class CompatibilityChecker(QMainWindow):
         self._show_download_dialog(RowDownloadDialog(self, self.settings, self._row_download_spec(row), focus))
 
     def _compat_double_clicked(self, row, col):
-        if self.compat_table.columnCount() < 12:
+        if self.compat_table.columnCount() < 14:
             return
         focus = {0: "torch", 1: "torchvision", 2: "torchaudio", 4: "cuda", 5: "cuda", 6: "cudnn",
-                 7: "triton", 8: "fa2", 9: "xformers", 10: "bnb"}.get(col, "wheels")
+                 7: "triton", 8: "fa2", 9: "xformers", 10: "bnb", 11: "ort", 12: "transformers"}.get(col, "wheels")
         self.open_row_downloads(row, focus)
 
     def open_nvidia_downloads(self, release=None, checked=()):
@@ -1408,6 +1496,18 @@ class CompatibilityChecker(QMainWindow):
             lines.append(f"# bitsandbytes")
             lines.append(f"pip install bitsandbytes=={bnb_ver}")
 
+        ort = self.get_ort_for_cuda_python(cuda_ver, python_ver)
+        if ort:
+            lines.append("")
+            lines.append("# ONNX Runtime GPU (import torch before onnxruntime so it uses PyTorch's CUDA libraries)")
+            lines.append(f"pip install onnxruntime-gpu=={ort[0]}")
+
+        tf = self.get_transformers_for_torch_python(torch_ver, python_ver)
+        if tf:
+            lines.append("")
+            lines.append(f"# Transformers (with peft, use peft >= {tf[0]['peft_min']})")
+            lines.append(f"pip install transformers=={tf[0]['transformers']}")
+
         content = "\n".join(lines)
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt",
                                           prefix=f"torch_install_{platform}_",
@@ -1478,6 +1578,21 @@ class CompatibilityChecker(QMainWindow):
         matched = next((m["mslk"] for m in builds if m["torch"] == torch_mm), None)
         return [m["mslk"] for m in builds], matched
 
+    def get_transformers_for_torch_python(self, torch_version, python_version):
+        as_tuple = lambda v: tuple(int(p) for p in v.split(".")[:2])
+        return [t for t in self.data.transformers
+                if as_tuple(torch_version) >= as_tuple(t["torch_min"])
+                and as_tuple(python_version) >= as_tuple(t["python_min"])]
+
+    def get_ort_for_cuda_python(self, cuda_version, python_version):
+        cuda = tuple(int(p) for p in cuda_version.split(".")[:2])
+        versions = []
+        for ort in self.data.onnxruntime_gpu:
+            built = tuple(int(p) for p in ort["cuda"].split("."))
+            if python_version in ort["python"] and cuda[0] == built[0] and cuda >= built:
+                versions.append(ort["ort"])
+        return versions
+
     def get_bnb_for_cuda_python(self, cuda_version, python_version):
         cuda_short = '.'.join(cuda_version.split('.')[:2])  # e.g. "13.0"
         bnb_versions = []
@@ -1510,6 +1625,8 @@ class CompatibilityChecker(QMainWindow):
         xformers_sel = self.xformers_combo.currentText() if self.xformers_combo.currentText() != "Any" else None
         triton_sel = self.triton_combo.currentText() if self.triton_combo.currentText() != "Any" else None
         bnb_sel = self.bnb_combo.currentText() if self.bnb_combo.currentText() != "Any" else None
+        ort_sel = self.ort_combo.currentText() if self.ort_combo.currentText() != "Any" else None
+        tf_sel = self.tf_combo.currentText() if self.tf_combo.currentText() != "Any" else None
         platform = self.platform_combo.currentText().lower()  # "windows" or "linux"
 
         compatible = []
@@ -1636,6 +1753,14 @@ class CompatibilityChecker(QMainWindow):
                         if not matching_bnb:
                             continue
 
+                    ort_versions = self.get_ort_for_cuda_python(tc["cuda"], py_ver)
+                    if ort_sel and ort_sel not in ort_versions:
+                        continue
+
+                    tf_rows = self.get_transformers_for_torch_python(tc["torch"], py_ver)
+                    if tf_sel and tf_sel not in [t["transformers"] for t in tf_rows]:
+                        continue
+
                     torchvision_ver, torchaudio_ver, ecosystem_tips = self._ecosystem_versions(
                         tc["torch"], tc["cuda"], py_ver, platform)
 
@@ -1689,18 +1814,21 @@ class CompatibilityChecker(QMainWindow):
                         "bnb": ", ".join(bnb_versions),
                         "bnb_has_assumed": bnb_has_assumed,
                         "bnb_has_patch_diff": bnb_has_patch_diff,
+                        "ort": ort_versions,
+                        "transformers": tf_rows,
                         "windows": windows_support,
                     })
 
         self.compat_table.clear()
         if compatible:
             self.compat_table.setRowCount(len(compatible))
-            self.compat_table.setColumnCount(12)
+            self.compat_table.setColumnCount(14)
             last_col_header = "Windows" if platform == "windows" else "Platform"
             self.compat_table.setHorizontalHeaderLabels(
                 ["PyTorch", "Torchvision", "Torchaudio", "Python",
                  "CUDA (compatible)", "CUDA (torch-tested)", "cuDNN",
-                 "Triton", "Flash Attn 2", "Xformers", "bitsandbytes", last_col_header])
+                 "Triton", "Flash Attn 2", "Xformers", "bitsandbytes", "ONNX Runtime GPU",
+                 "Transformers", last_col_header])
 
             # Add header tooltips
             compat_cuda_hdr = self.compat_table.horizontalHeaderItem(4)
@@ -1811,6 +1939,23 @@ class CompatibilityChecker(QMainWindow):
                     bnb_item.setToolTip("* = Assumed compatible (not officially tested)")
                 self.compat_table.setItem(i, 10, bnb_item)
 
+                ort = combo["ort"]
+                if len(ort) > 3:
+                    ort_item = make_item(f"{ort[0]} – {ort[-1]}")
+                    ort_item.setToolTip("Compatible releases, newest first:\n" + ", ".join(ort))
+                else:
+                    ort_item = make_item(", ".join(ort) or "-")
+                self.compat_table.setItem(i, 11, ort_item)
+
+                tf = [t["transformers"] for t in combo["transformers"]]
+                tf_item = make_item(f"{tf[0]} – {tf[-1]}" if len(tf) > 3 else (", ".join(tf) or "-"))
+                if tf:
+                    tip = f"{tf[0]} needs peft {combo['transformers'][0]['peft_min']} or newer, if peft is used."
+                    if len(tf) > 3:
+                        tip = "Compatible releases, newest first:\n" + ", ".join(tf) + "\n\n" + tip
+                    tf_item.setToolTip(tip)
+                self.compat_table.setItem(i, 12, tf_item)
+
                 windows_item = make_item(combo["windows"])
                 if combo["windows"].startswith("Linux-only"):
                     windows_item.setBackground(QColor(240, 130, 130))
@@ -1822,7 +1967,7 @@ class CompatibilityChecker(QMainWindow):
                             "The download does not exist.")
                     else:
                         windows_item.setToolTip("This wheel is not usable on Windows.")
-                self.compat_table.setItem(i, 11, windows_item)
+                self.compat_table.setItem(i, 13, windows_item)
 
             self._fit_table_columns(self.compat_table)
         else:
